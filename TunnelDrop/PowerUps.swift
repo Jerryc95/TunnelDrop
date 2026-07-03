@@ -107,8 +107,8 @@ extension GameScene {
 
     func createPowerUpHUD() {
         powerUpLabel = SKLabelNode(fontNamed: "MarkerFelt-Wide")
-        powerUpLabel.fontSize = 26
-        powerUpLabel.position = CGPoint(x: frame.midX, y: frame.maxY - 190)
+        powerUpLabel.fontSize = 24
+        powerUpLabel.position = CGPoint(x: frame.midX, y: hudTopY - 155)
         powerUpLabel.fontColor = UIColor.white
         powerUpLabel.zPosition = 90
         powerUpLabel.text = ""
@@ -124,14 +124,12 @@ extension GameScene {
         if powerUps.magnetTime > 0 {
             let playerPosition = player.position
             let pull = min(1.0, deltaTime * 6)
-            for name in ["feather", "coin"] {
-                enumerateChildNodes(withName: name) { [magnetRadius] node, _ in
-                    let dx = playerPosition.x - node.position.x
-                    let dy = playerPosition.y - node.position.y
-                    if hypot(dx, dy) < magnetRadius {
-                        node.position.x += dx * pull
-                        node.position.y += dy * pull
-                    }
+            enumerateChildNodes(withName: "feather") { [magnetRadius] node, _ in
+                let dx = playerPosition.x - node.position.x
+                let dy = playerPosition.y - node.position.y
+                if hypot(dx, dy) < magnetRadius {
+                    node.position.x += dx * pull
+                    node.position.y += dy * pull
                 }
             }
         }
@@ -164,9 +162,10 @@ extension GameScene {
     }
 
     func updatePowerUpHUD() {
+        comboBadge.isHidden = powerUps.multiplierTime <= 0
+
         var parts: [String] = []
         if powerUps.magnetTime > 0 { parts.append("🧲\(Int(powerUps.magnetTime.rounded(.up)))") }
-        if powerUps.multiplierTime > 0 { parts.append("⭐️x2 \(Int(powerUps.multiplierTime.rounded(.up)))") }
         if powerUps.ghostTime > 0 { parts.append("👻\(Int(powerUps.ghostTime.rounded(.up)))") }
         if powerUps.lives > 0 { parts.append("❤️\(powerUps.lives)") }
         powerUpLabel.text = parts.joined(separator: "   ")

@@ -22,7 +22,6 @@ struct PhysicsCategory {
     static let boundary: UInt32 = 1 << 4
     static let feather: UInt32 = 1 << 5
     static let powerUp: UInt32 = 1 << 6
-    static let coin: UInt32 = 1 << 7
 }
 
 // SKPhysicsBody(texture:) traps with EXC_BREAKPOINT in the iOS simulator (long-standing
@@ -56,11 +55,26 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
     var coinLabel: SKLabelNode!
     var coinsThisRun = 0
+    var scorePerCoin = 10
     var coinBalance = UserDefaults.standard.integer(forKey: "coinBalance") {
         didSet {
             UserDefaults.standard.set(coinBalance, forKey: "coinBalance")
-            coinLabel?.text = "🪙 \(coinBalance)"
         }
+    }
+
+    // .aspectFill crops the 750x1334 scene horizontally on tall phones (and
+    // vertically on iPads), so HUD anchors derive from the visible region.
+    var hudInsetX: CGFloat {
+        guard let view else { return 0 }
+        let scale = max(view.bounds.width / frame.width, view.bounds.height / frame.height)
+        return (frame.width - view.bounds.width / scale) / 2
+    }
+
+    var hudTopY: CGFloat {
+        guard let view else { return frame.maxY - 105 }
+        let scale = max(view.bounds.width / frame.width, view.bounds.height / frame.height)
+        let cropY = (frame.height - view.bounds.height / scale) / 2
+        return frame.maxY - cropY - 105
     }
     var flutterMeter = 1.0
     var isFluttering = false
@@ -71,6 +85,10 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     var player: SKSpriteNode!
 
     var scoreLabel: SKLabelNode!
+    var scoreCaption: SKLabelNode!
+    var comboBadge: SKLabelNode!
+    var pauseButton: SKLabelNode!
+    var pausedLabel: SKLabelNode!
     var playLabel: SKLabelNode!
     var restartLabel: SKLabelNode!
     var highScoreLabel: SKLabelNode!
@@ -86,7 +104,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     var score = 0 {
         didSet {
-            scoreLabel.text = "SCORE: \(score)"
+            scoreLabel.text = "\(score)"
+            coinLabel?.text = "🪙 \(score / scorePerCoin)"
         }
     }
     
@@ -105,7 +124,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         #endif
         player.physicsBody!.categoryBitMask = PhysicsCategory.player
         player.physicsBody!.collisionBitMask = PhysicsCategory.wall | PhysicsCategory.rock | PhysicsCategory.boundary
-        player.physicsBody!.contactTestBitMask = PhysicsCategory.wall | PhysicsCategory.rock | PhysicsCategory.scoreGate | PhysicsCategory.feather | PhysicsCategory.powerUp | PhysicsCategory.coin
+        player.physicsBody!.contactTestBitMask = PhysicsCategory.wall | PhysicsCategory.rock | PhysicsCategory.scoreGate | PhysicsCategory.feather | PhysicsCategory.powerUp
         player.physicsBody?.isDynamic = true
         
         player.physicsBody?.allowsRotation = false
@@ -236,30 +255,69 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     func createScore() {
-        scoreLabel = SKLabelNode(fontNamed: "MarkerFelt-Wide")
-        scoreLabel.fontSize = 40
-        scoreLabel.position = CGPoint(x: frame.midX, y: frame.maxY - 115)
-        scoreLabel.text = "SCORE: 0"
-        scoreLabel.fontColor = UIColor.white
-        scoreLabel.alpha = 0
+        scoreCaption = SKLabelNode(fontNamed: "MarkerFelt-Wide")
+        scoreCaption.fontSize = 24
+        scoreCaption.position = CGPoint(x: frame.midX, y: hudTopY)
+        scoreCaption.text = "SCORE"
+        scoreCaption.fontColor = UIColor(white: 0.8, alpha: 1)
+        scoreCaption.zPosition = 90
+        scoreCaption.alpha = 0
+        addChild(scoreCaption)
 
+        scoreLabel = SKLabelNode(fontNamed: "MarkerFelt-Wide")
+        scoreLabel.fontSize = 68
+        scoreLabel.position = CGPoint(x: frame.midX, y: hudTopY - 70)
+        scoreLabel.text = "0"
+        scoreLabel.fontColor = UIColor.white
+        scoreLabel.zPosition = 90
+        scoreLabel.alpha = 0
         addChild(scoreLabel)
+
+        comboBadge = SKLabelNode(fontNamed: "MarkerFelt-Wide")
+        comboBadge.fontSize = 26
+        comboBadge.position = CGPoint(x: frame.midX, y: hudTopY - 115)
+        comboBadge.text = "⚡️ x2 COMBO"
+        comboBadge.fontColor = UIColor.orange
+        comboBadge.zPosition = 90
+        comboBadge.isHidden = true
+        addChild(comboBadge)
+
+        pauseButton = SKLabelNode(text: "⏸️")
+        pauseButton.fontSize = 44
+        pauseButton.position = CGPoint(x: frame.minX + hudInsetX + 50, y: hudTopY - 35)
+        pauseButton.zPosition = 90
+        pauseButton.name = "pauseButton"
+        pauseButton.alpha = 0
+        addChild(pauseButton)
     }
 
     func createFlutterGauge() {
-        let barSize = CGSize(width: 300, height: 16)
+        let barSize = CGSize(width: 22, height: 260)
 
         flutterBarBackground = SKSpriteNode(color: UIColor(white: 0.1, alpha: 0.6), size: barSize)
-        flutterBarBackground.position = CGPoint(x: frame.midX, y: frame.maxY - 150)
+        flutterBarBackground.position = CGPoint(x: frame.maxX - hudInsetX - 45, y: frame.midY + 120)
         flutterBarBackground.zPosition = 90
         flutterBarBackground.alpha = 0
         addChild(flutterBarBackground)
 
         flutterBarFill = SKSpriteNode(color: UIColor.cyan, size: barSize)
-        flutterBarFill.anchorPoint = CGPoint(x: 0, y: 0.5)
-        flutterBarFill.position = CGPoint(x: -barSize.width / 2, y: 0)
+        flutterBarFill.anchorPoint = CGPoint(x: 0.5, y: 0)
+        flutterBarFill.position = CGPoint(x: 0, y: -barSize.height / 2)
         flutterBarFill.zPosition = 1
         flutterBarBackground.addChild(flutterBarFill)
+
+        let bolt = SKLabelNode(text: "⚡️")
+        bolt.fontSize = 34
+        bolt.verticalAlignmentMode = .center
+        bolt.position = CGPoint(x: 0, y: barSize.height / 2 + 34)
+        flutterBarBackground.addChild(bolt)
+
+        let caption = SKLabelNode(fontNamed: "MarkerFelt-Wide")
+        caption.fontSize = 18
+        caption.text = "FLUTTER"
+        caption.fontColor = UIColor.cyan
+        caption.position = CGPoint(x: 0, y: -barSize.height / 2 - 36)
+        flutterBarBackground.addChild(caption)
     }
 
     func refillFlutter(_ amount: Double) {
@@ -287,8 +345,13 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             highScore = score
             UserDefaults.standard.set(highScore, forKey: "highScore")
         }
-        highScoreLabel.text = "BEST: \(highScore)"
+        coinsThisRun = score / scorePerCoin
+        coinBalance += coinsThisRun
+        highScoreLabel.text = "BEST: \(highScore)   🪙 +\(coinsThisRun)"
         highScoreLabel.alpha = 1
+        pauseButton.alpha = 0
+        comboBadge.isHidden = true
+        coinLabel.text = "🪙 \(coinBalance)"
     }
     
     func createScreens() {
@@ -315,6 +378,15 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         restartLabel.fontColor = UIColor.white
         restartLabel.alpha = 0
         addChild(restartLabel)
+
+        pausedLabel = SKLabelNode(fontNamed: "Courier")
+        pausedLabel.fontSize = 30
+        pausedLabel.position = CGPoint(x: frame.midX, y: frame.midY)
+        pausedLabel.text = "PAUSED - TAP TO RESUME"
+        pausedLabel.fontColor = UIColor.white
+        pausedLabel.zPosition = 100
+        pausedLabel.isHidden = true
+        addChild(pausedLabel)
 
         highScoreLabel = SKLabelNode(fontNamed: "Courier")
         highScoreLabel.fontSize = 24
@@ -357,7 +429,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         let deltaTime = lastUpdateTime > 0 ? min(currentTime - lastUpdateTime, 1.0 / 30.0) : 0
         lastUpdateTime = currentTime
 
-        guard gameState == .playing else { return }
+        guard gameState == .playing && !isPaused else { return }
 
         updatePowerUps(deltaTime: deltaTime)
 
@@ -366,7 +438,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             flutterMeter = max(flutterMeter - flutterDrainPerSecond * deltaTime, 0)
         }
         player.speed = flutterActive ? 2.0 : 1.0
-        flutterBarFill.xScale = CGFloat(flutterMeter)
+        flutterBarFill.yScale = CGFloat(flutterMeter)
         flutterBarFill.color = flutterMeter > 0.25 ? UIColor.cyan : UIColor.red
 
         if let accelerometerData = motionManager.accelerometerData {
@@ -376,14 +448,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     func didBegin(_ contact: SKPhysicsContact) {
         let collision = contact.bodyA.categoryBitMask | contact.bodyB.categoryBitMask
-
-        if collision == PhysicsCategory.player | PhysicsCategory.coin {
-            let coin = contact.bodyA.categoryBitMask == PhysicsCategory.coin ? contact.bodyA.node : contact.bodyB.node
-            if let coin {
-                collectCoin(coin)
-            }
-            return
-        }
 
         if collision == PhysicsCategory.player | PhysicsCategory.powerUp {
             let node = contact.bodyA.categoryBitMask == PhysicsCategory.powerUp ? contact.bodyA.node : contact.bodyB.node
@@ -432,18 +496,32 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
                    let activatePlayer = SKAction.run { [unowned self] in
                        tiltSensitivity = 5.0
                        scoreLabel.alpha = 1
+                       scoreCaption.alpha = 1
+                       pauseButton.alpha = 1
                        playLabel.alpha = 0
                        highScoreLabel.alpha = 0
                        flutterBarBackground.alpha = 1
+                       coinLabel.text = "🪙 0"
                        self.startRocks()
                        self.startFeathers()
                        self.startPowerUps()
-                       self.startCoins()
                    }
             
             let sequence = SKAction.sequence([fadeOut, wait, activatePlayer, remove])
                   title.run(sequence)
         case .playing:
+            if isPaused {
+                isPaused = false
+                pausedLabel.isHidden = true
+                return
+            }
+            if let touch = touches.first,
+               nodes(at: touch.location(in: self)).contains(where: { $0.name == "pauseButton" }) {
+                isPaused = true
+                isFluttering = false
+                pausedLabel.isHidden = false
+                return
+            }
             isFluttering = true
         case .dead:
             if let scene = GameScene(fileNamed: "GameScene") {
