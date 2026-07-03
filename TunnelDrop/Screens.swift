@@ -53,8 +53,6 @@ struct HomeView: View {
     @ObservedObject var flow: GameFlow
     @AppStorage("coinBalance") private var coinBalance = 0
     @AppStorage("highScore") private var highScore = 0
-    @AppStorage("selectedWorld") private var selectedWorld = 0
-    @AppStorage("unlockedWorldCount") private var unlockedWorldCount = 1
     @State private var sheet: SheetKind?
 
     enum SheetKind: String, Identifiable {
@@ -130,20 +128,6 @@ struct HomeView: View {
                     .background(Theme.orange, in: RoundedRectangle(cornerRadius: 22))
             }
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("WORLDS")
-                    .font(.system(size: 13, weight: .heavy, design: .rounded))
-                    .foregroundStyle(.secondary)
-                    .kerning(2)
-                HStack(spacing: 10) {
-                    ForEach(World.all.indices, id: \.self) { index in
-                        worldChip(index)
-                    }
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.top, 18)
-
             HStack(spacing: 10) {
                 navButton("SHOP", emoji: "🏪") { sheet = .shop }
                 navButton("RANKS", emoji: "🏆") { sheet = .ranks }
@@ -158,39 +142,6 @@ struct HomeView: View {
         .sheet(item: $sheet) { kind in
             ComingSoonView(title: kind.rawValue)
         }
-    }
-
-    private func worldChip(_ index: Int) -> some View {
-        let world = World.all[index]
-        let unlocked = index < unlockedWorldCount
-        let selected = index == min(selectedWorld, unlockedWorldCount - 1)
-
-        return Button {
-            if unlocked {
-                selectedWorld = index
-            }
-        } label: {
-            Group {
-                if unlocked {
-                    Text(world.name.uppercased())
-                        .font(.system(size: 13, weight: .heavy, design: .rounded))
-                        .foregroundStyle(.white)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.6)
-                } else {
-                    Image(systemName: "lock.fill")
-                        .foregroundStyle(.white.opacity(0.7))
-                }
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
-            .background(world.chipColor.opacity(unlocked ? 1 : 0.45), in: RoundedRectangle(cornerRadius: 14))
-            .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(selected ? Theme.orange : .clear, lineWidth: 2)
-            )
-        }
-        .disabled(!unlocked)
     }
 
     private func navButton(_ label: String, emoji: String, action: @escaping () -> Void) -> some View {

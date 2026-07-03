@@ -9,15 +9,12 @@
 //
 
 import SpriteKit
-import SwiftUI
 
 struct World {
     let name: String
     let dirtColor: UIColor
     let tint: UIColor
     let tintBlend: CGFloat
-
-    var chipColor: Color { Color(uiColor: tint).opacity(0.55) }
 
     static let all: [World] = [
         World(name: "Cave",
@@ -58,10 +55,5 @@ extension GameScene {
         guard target != worldIndex else { return }
         worldIndex = target
         applyWorld(worldIndex, animated: true)
-
-        let unlocked = max(UserDefaults.standard.integer(forKey: "unlockedWorldCount"), 1)
-        if worldIndex + 1 > unlocked {
-            UserDefaults.standard.set(worldIndex + 1, forKey: "unlockedWorldCount")
-        }
     }
 }

@@ -67,7 +67,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
     var coinLabel: SKLabelNode!
     var coinsThisRun = 0
-    var scorePerCoin = 10
+    var coinBonusPoints = 0
+    var scorePerCoin = 20
     var coinBalance = UserDefaults.standard.integer(forKey: "coinBalance") {
         didSet {
             UserDefaults.standard.set(coinBalance, forKey: "coinBalance")
@@ -119,7 +120,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     var score = 0 {
         didSet {
             scoreLabel.text = "\(score)"
-            coinLabel?.text = "🪙 \(score / scorePerCoin)"
+            coinLabel?.text = "🪙 \((score + coinBonusPoints) / scorePerCoin)"
         }
     }
     
@@ -393,7 +394,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             highScore = score
             UserDefaults.standard.set(highScore, forKey: "highScore")
         }
-        coinsThisRun = score / scorePerCoin
+        coinsThisRun = (score + coinBonusPoints) / scorePerCoin
         coinBalance += coinsThisRun
 
         let result = GameResult(score: score, coinsEarned: coinsThisRun, previousBest: previousBest, isNewBest: score > previousBest)
@@ -446,10 +447,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     override func didMove(to view: SKView) {
-        let unlockedWorlds = max(UserDefaults.standard.integer(forKey: "unlockedWorldCount"), 1)
-        startWorldIndex = min(UserDefaults.standard.integer(forKey: "selectedWorld"), unlockedWorlds - 1)
-        worldIndex = startWorldIndex
-
         createPlayer()
         createDirt()
         createWalls()
@@ -524,7 +521,11 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
             let successSound = SKAction.playSoundFileNamed("success.mp3", waitForCompletion: false)
             run(successSound)
-            score += powerUps.scoreMultiplier
+            // The multiplier power-up doubles coin earnings, not score.
+            if powerUps.multiplierTime > 0 {
+                coinBonusPoints += 1
+            }
+            score += 1
 
             tiltSensitivity = min(tiltSensitivity + 1.75, maxTiltSensitivity)
             advanceWorldIfNeeded()

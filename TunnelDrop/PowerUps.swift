@@ -39,8 +39,6 @@ struct PowerUpState {
     var ghostTime = 0.0
     var lives = 0
     var reviveTime = 0.0
-
-    var scoreMultiplier: Int { multiplierTime > 0 ? 2 : 1 }
 }
 
 class PowerUpNode: SKNode {
