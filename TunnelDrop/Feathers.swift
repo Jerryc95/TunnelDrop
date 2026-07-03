@@ -26,7 +26,10 @@ extension GameScene {
         feather.physicsBody?.collisionBitMask = 0
         feather.physicsBody?.contactTestBitMask = PhysicsCategory.player
 
-        feather.position = CGPoint(x: CGFloat.random(in: frame.width * 0.25...frame.width * 0.75), y: -80)
+        // Spawn near an upcoming gap so the feather is actually reachable.
+        let gapFraction = patternQueue.first ?? CGFloat.random(in: 0.2...0.8)
+        let xPosition = gapCenterX(for: gapFraction) + CGFloat.random(in: -50...50)
+        feather.position = CGPoint(x: xPosition, y: -80)
         addChild(feather)
 
         let driftRight = SKAction.moveBy(x: 14, y: 0, duration: 0.7)

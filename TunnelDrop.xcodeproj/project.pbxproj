@@ -20,6 +20,8 @@
 		FB7DB09C2B6EB70400A5DFF1 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = FB7DB09A2B6EB70400A5DFF1 /* LaunchScreen.storyboard */; };
 		FBFEA7012C0FFEE000000002 /* Feathers.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBFEA7012C0FFEE000000001 /* Feathers.swift */; };
 		FBFEA7012C0FFEE000000004 /* PowerUps.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBFEA7012C0FFEE000000003 /* PowerUps.swift */; };
+		FBFEA7012C0FFEE000000006 /* Patterns.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBFEA7012C0FFEE000000005 /* Patterns.swift */; };
+		FBFEA7012C0FFEE000000008 /* Coins.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBFEA7012C0FFEE000000007 /* Coins.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -37,6 +39,8 @@
 		FB7DB09B2B6EB70400A5DFF1 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		FBFEA7012C0FFEE000000001 /* Feathers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Feathers.swift; sourceTree = "<group>"; };
 		FBFEA7012C0FFEE000000003 /* PowerUps.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PowerUps.swift; sourceTree = "<group>"; };
+		FBFEA7012C0FFEE000000005 /* Patterns.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Patterns.swift; sourceTree = "<group>"; };
+		FBFEA7012C0FFEE000000007 /* Coins.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Coins.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -74,6 +78,8 @@
 				FB7DB0912B6EB70300A5DFF1 /* GameScene.swift */,
 				FBFEA7012C0FFEE000000001 /* Feathers.swift */,
 				FBFEA7012C0FFEE000000003 /* PowerUps.swift */,
+				FBFEA7012C0FFEE000000005 /* Patterns.swift */,
+				FBFEA7012C0FFEE000000007 /* Coins.swift */,
 				FB7DB0932B6EB70300A5DFF1 /* GameViewController.swift */,
 				FB7DB0952B6EB70300A5DFF1 /* Main.storyboard */,
 				FB7DB0982B6EB70400A5DFF1 /* Assets.xcassets */,
@@ -165,6 +171,8 @@
 				FB7DB0922B6EB70300A5DFF1 /* GameScene.swift in Sources */,
 				FBFEA7012C0FFEE000000002 /* Feathers.swift in Sources */,
 				FBFEA7012C0FFEE000000004 /* PowerUps.swift in Sources */,
+				FBFEA7012C0FFEE000000006 /* Patterns.swift in Sources */,
+				FBFEA7012C0FFEE000000008 /* Coins.swift in Sources */,
 				FB7DB0942B6EB70300A5DFF1 /* GameViewController.swift in Sources */,
 				FB7DB08C2B6EB70300A5DFF1 /* AppDelegate.swift in Sources */,
 			);

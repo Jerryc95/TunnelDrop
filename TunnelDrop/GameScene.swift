@@ -22,6 +22,7 @@ struct PhysicsCategory {
     static let boundary: UInt32 = 1 << 4
     static let feather: UInt32 = 1 << 5
     static let powerUp: UInt32 = 1 << 6
+    static let coin: UInt32 = 1 << 7
 }
 
 // SKPhysicsBody(texture:) traps with EXC_BREAKPOINT in the iOS simulator (long-standing
@@ -50,6 +51,17 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     var powerUps = PowerUpState()
     var powerUpLabel: SKLabelNode!
     var magnetRadius: CGFloat = 300
+
+    var patternQueue: [CGFloat] = []
+
+    var coinLabel: SKLabelNode!
+    var coinsThisRun = 0
+    var coinBalance = UserDefaults.standard.integer(forKey: "coinBalance") {
+        didSet {
+            UserDefaults.standard.set(coinBalance, forKey: "coinBalance")
+            coinLabel?.text = "🪙 \(coinBalance)"
+        }
+    }
     var flutterMeter = 1.0
     var isFluttering = false
     var flutterBarBackground: SKSpriteNode!
@@ -93,7 +105,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         #endif
         player.physicsBody!.categoryBitMask = PhysicsCategory.player
         player.physicsBody!.collisionBitMask = PhysicsCategory.wall | PhysicsCategory.rock | PhysicsCategory.boundary
-        player.physicsBody!.contactTestBitMask = PhysicsCategory.wall | PhysicsCategory.rock | PhysicsCategory.scoreGate | PhysicsCategory.feather | PhysicsCategory.powerUp
+        player.physicsBody!.contactTestBitMask = PhysicsCategory.wall | PhysicsCategory.rock | PhysicsCategory.scoreGate | PhysicsCategory.feather | PhysicsCategory.powerUp | PhysicsCategory.coin
         player.physicsBody?.isDynamic = true
         
         player.physicsBody?.allowsRotation = false
@@ -193,12 +205,11 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         addChild(scoreCollision)
         
         let yPosition = CGFloat.random(in: -120...0)
-        let xPosition = leftRock.frame.width + CGFloat.random(in: -260...20)
-        let rockDistance: CGFloat = 100
-        //        let rockDistance = CGFloat.random(in: 70...130)
-        
-        leftRock.position = CGPoint(x: xPosition - rockDistance, y: yPosition)
-        rightRock.position = CGPoint(x: xPosition + leftRock.frame.width + rockDistance, y: yPosition)
+        let halfGap: CGFloat = 100
+        let gapCenter = gapCenterX(for: nextGapPosition())
+
+        leftRock.position = CGPoint(x: gapCenter - halfGap - leftRock.frame.width / 2, y: yPosition)
+        rightRock.position = CGPoint(x: gapCenter + halfGap + rightRock.frame.width / 2, y: yPosition)
         scoreCollision.position = CGPoint(x: 1, y: yPosition - 25)
         
         let endPosition = frame.height * 1.5
@@ -320,6 +331,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         createScore()
         createFlutterGauge()
         createPowerUpHUD()
+        createCoinHUD()
         createScreens()
 
         motionManager.startAccelerometerUpdates()
@@ -364,6 +376,14 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     func didBegin(_ contact: SKPhysicsContact) {
         let collision = contact.bodyA.categoryBitMask | contact.bodyB.categoryBitMask
+
+        if collision == PhysicsCategory.player | PhysicsCategory.coin {
+            let coin = contact.bodyA.categoryBitMask == PhysicsCategory.coin ? contact.bodyA.node : contact.bodyB.node
+            if let coin {
+                collectCoin(coin)
+            }
+            return
+        }
 
         if collision == PhysicsCategory.player | PhysicsCategory.powerUp {
             let node = contact.bodyA.categoryBitMask == PhysicsCategory.powerUp ? contact.bodyA.node : contact.bodyB.node
@@ -418,6 +438,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
                        self.startRocks()
                        self.startFeathers()
                        self.startPowerUps()
+                       self.startCoins()
                    }
             
             let sequence = SKAction.sequence([fadeOut, wait, activatePlayer, remove])

@@ -65,7 +65,10 @@ extension GameScene {
         powerUp.physicsBody?.collisionBitMask = 0
         powerUp.physicsBody?.contactTestBitMask = PhysicsCategory.player
 
-        powerUp.position = CGPoint(x: CGFloat.random(in: frame.width * 0.25...frame.width * 0.75), y: -80)
+        // Spawn near an upcoming gap so the power-up is actually reachable.
+        let gapFraction = patternQueue.first ?? CGFloat.random(in: 0.2...0.8)
+        let xPosition = gapCenterX(for: gapFraction) + CGFloat.random(in: -50...50)
+        powerUp.position = CGPoint(x: xPosition, y: -80)
         addChild(powerUp)
 
         let pulseUp = SKAction.scale(to: 1.2, duration: 0.5)
@@ -121,12 +124,14 @@ extension GameScene {
         if powerUps.magnetTime > 0 {
             let playerPosition = player.position
             let pull = min(1.0, deltaTime * 6)
-            enumerateChildNodes(withName: "feather") { [magnetRadius] node, _ in
-                let dx = playerPosition.x - node.position.x
-                let dy = playerPosition.y - node.position.y
-                if hypot(dx, dy) < magnetRadius {
-                    node.position.x += dx * pull
-                    node.position.y += dy * pull
+            for name in ["feather", "coin"] {
+                enumerateChildNodes(withName: name) { [magnetRadius] node, _ in
+                    let dx = playerPosition.x - node.position.x
+                    let dy = playerPosition.y - node.position.y
+                    if hypot(dx, dy) < magnetRadius {
+                        node.position.x += dx * pull
+                        node.position.y += dy * pull
+                    }
                 }
             }
         }
