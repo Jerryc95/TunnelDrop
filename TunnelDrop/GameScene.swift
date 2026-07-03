@@ -67,7 +67,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
     var coinLabel: SKLabelNode!
     var coinsThisRun = 0
-    var coinBonusPoints = 0
     var scorePerCoin = 20
     var coinBalance = UserDefaults.standard.integer(forKey: "coinBalance") {
         didSet {
@@ -120,7 +119,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     var score = 0 {
         didSet {
             scoreLabel.text = "\(score)"
-            coinLabel?.text = "🪙 \((score + coinBonusPoints) / scorePerCoin)"
+            coinLabel?.text = "🪙 \(score / scorePerCoin)"
         }
     }
     
@@ -302,7 +301,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         comboBadge = SKLabelNode(fontNamed: "MarkerFelt-Wide")
         comboBadge.fontSize = 26
         comboBadge.position = CGPoint(x: frame.midX, y: hudTopY - 115)
-        comboBadge.text = "⚡️ x2 COMBO"
+        comboBadge.text = "⭐️ x3 COMBO"
         comboBadge.fontColor = UIColor.orange
         comboBadge.zPosition = 90
         comboBadge.isHidden = true
@@ -394,7 +393,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             highScore = score
             UserDefaults.standard.set(highScore, forKey: "highScore")
         }
-        coinsThisRun = (score + coinBonusPoints) / scorePerCoin
+        coinsThisRun = score / scorePerCoin
         coinBalance += coinsThisRun
 
         let result = GameResult(score: score, coinsEarned: coinsThisRun, previousBest: previousBest, isNewBest: score > previousBest)
@@ -521,11 +520,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
             let successSound = SKAction.playSoundFileNamed("success.mp3", waitForCompletion: false)
             run(successSound)
-            // The multiplier power-up doubles coin earnings, not score.
-            if powerUps.multiplierTime > 0 {
-                coinBonusPoints += 1
-            }
-            score += 1
+            score += powerUps.multiplierTime > 0 ? 3 : 1
 
             tiltSensitivity = min(tiltSensitivity + 1.75, maxTiltSensitivity)
             advanceWorldIfNeeded()
