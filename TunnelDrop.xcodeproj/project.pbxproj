@@ -23,6 +23,7 @@
 		FBFEA7012C0FFEE000000006 /* Patterns.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBFEA7012C0FFEE000000005 /* Patterns.swift */; };
 		FBFEA7012C0FFEE000000008 /* Coins.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBFEA7012C0FFEE000000007 /* Coins.swift */; };
 		FBFEA7012C0FFEE00000000A /* Screens.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBFEA7012C0FFEE000000009 /* Screens.swift */; };
+		FBFEA7012C0FFEE00000000C /* Worlds.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBFEA7012C0FFEE00000000B /* Worlds.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -43,6 +44,7 @@
 		FBFEA7012C0FFEE000000005 /* Patterns.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Patterns.swift; sourceTree = "<group>"; };
 		FBFEA7012C0FFEE000000007 /* Coins.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Coins.swift; sourceTree = "<group>"; };
 		FBFEA7012C0FFEE000000009 /* Screens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Screens.swift; sourceTree = "<group>"; };
+		FBFEA7012C0FFEE00000000B /* Worlds.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Worlds.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -83,6 +85,7 @@
 				FBFEA7012C0FFEE000000005 /* Patterns.swift */,
 				FBFEA7012C0FFEE000000007 /* Coins.swift */,
 				FBFEA7012C0FFEE000000009 /* Screens.swift */,
+				FBFEA7012C0FFEE00000000B /* Worlds.swift */,
 				FB7DB0932B6EB70300A5DFF1 /* GameViewController.swift */,
 				FB7DB0952B6EB70300A5DFF1 /* Main.storyboard */,
 				FB7DB0982B6EB70400A5DFF1 /* Assets.xcassets */,
@@ -177,6 +180,7 @@
 				FBFEA7012C0FFEE000000006 /* Patterns.swift in Sources */,
 				FBFEA7012C0FFEE000000008 /* Coins.swift in Sources */,
 				FBFEA7012C0FFEE00000000A /* Screens.swift in Sources */,
+				FBFEA7012C0FFEE00000000C /* Worlds.swift in Sources */,
 				FB7DB0942B6EB70300A5DFF1 /* GameViewController.swift in Sources */,
 				FB7DB08C2B6EB70300A5DFF1 /* AppDelegate.swift in Sources */,
 			);

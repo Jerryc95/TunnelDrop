@@ -53,6 +53,8 @@ struct HomeView: View {
     @ObservedObject var flow: GameFlow
     @AppStorage("coinBalance") private var coinBalance = 0
     @AppStorage("highScore") private var highScore = 0
+    @AppStorage("selectedWorld") private var selectedWorld = 0
+    @AppStorage("unlockedWorldCount") private var unlockedWorldCount = 1
     @State private var sheet: SheetKind?
 
     enum SheetKind: String, Identifiable {
@@ -134,10 +136,9 @@ struct HomeView: View {
                     .foregroundStyle(.secondary)
                     .kerning(2)
                 HStack(spacing: 10) {
-                    worldChip("CAVE", unlocked: true, tint: Theme.orange)
-                    worldChip(nil, unlocked: false, tint: Color(red: 0.16, green: 0.13, blue: 0.35))
-                    worldChip(nil, unlocked: false, tint: Color(red: 0.10, green: 0.30, blue: 0.38))
-                    worldChip(nil, unlocked: false, tint: Color(red: 0.13, green: 0.30, blue: 0.16))
+                    ForEach(World.all.indices, id: \.self) { index in
+                        worldChip(index)
+                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -159,24 +160,37 @@ struct HomeView: View {
         }
     }
 
-    private func worldChip(_ name: String?, unlocked: Bool, tint: Color) -> some View {
-        Group {
-            if let name {
-                Text(name)
-                    .font(.system(size: 15, weight: .heavy, design: .rounded))
-                    .foregroundStyle(.white)
-            } else {
-                Image(systemName: "lock.fill")
-                    .foregroundStyle(.white.opacity(0.7))
+    private func worldChip(_ index: Int) -> some View {
+        let world = World.all[index]
+        let unlocked = index < unlockedWorldCount
+        let selected = index == min(selectedWorld, unlockedWorldCount - 1)
+
+        return Button {
+            if unlocked {
+                selectedWorld = index
             }
+        } label: {
+            Group {
+                if unlocked {
+                    Text(world.name.uppercased())
+                        .font(.system(size: 13, weight: .heavy, design: .rounded))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                } else {
+                    Image(systemName: "lock.fill")
+                        .foregroundStyle(.white.opacity(0.7))
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(world.chipColor.opacity(unlocked ? 1 : 0.45), in: RoundedRectangle(cornerRadius: 14))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(selected ? Theme.orange : .clear, lineWidth: 2)
+            )
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 14)
-        .background(tint.opacity(unlocked ? 0.25 : 1), in: RoundedRectangle(cornerRadius: 14))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(unlocked ? Theme.orange : .clear, lineWidth: 2)
-        )
+        .disabled(!unlocked)
     }
 
     private func navButton(_ label: String, emoji: String, action: @escaping () -> Void) -> some View {

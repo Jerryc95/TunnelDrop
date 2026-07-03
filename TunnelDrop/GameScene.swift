@@ -60,6 +60,11 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
     var patternQueue: [CGFloat] = []
 
+    var dirtNode: SKSpriteNode!
+    var worldIndex = 0
+    var startWorldIndex = 0
+    var scorePerWorld = 25
+
     var coinLabel: SKLabelNode!
     var coinsThisRun = 0
     var scorePerCoin = 10
@@ -152,16 +157,17 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     func createDirt() {
-        let dirt = SKSpriteNode(color: UIColor(hue: 360, saturation: 0.25, brightness: 0.24, alpha: 1), size: CGSize(width: frame.width, height: frame.height))
-        dirt.anchorPoint = CGPoint(x: 0, y: 0)
-        
-        addChild(dirt)
-        dirt.zPosition = -50
+        dirtNode = SKSpriteNode(color: World.all[worldIndex].dirtColor, size: CGSize(width: frame.width, height: frame.height))
+        dirtNode.anchorPoint = CGPoint(x: 0, y: 0)
+
+        addChild(dirtNode)
+        dirtNode.zPosition = -50
     }
     
     func createWalls() {
         let leftWallTexture = SKTexture(imageNamed: "wallLeft")
         let rightWallTexture = SKTexture(imageNamed: "wallRight")
+        let world = World.all[worldIndex]
         
         
         for i in 0...1 {
@@ -174,6 +180,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             
             leftWall.name = "leftWall"
             leftWall.zPosition = -30
+            leftWall.color = world.tint
+            leftWall.colorBlendFactor = world.tintBlend
             leftWall.position = CGPoint(x: 35, y: (-leftWallTexture.size().height * CGFloat(i)) + frame.midY)
             
             addChild(leftWall)
@@ -185,6 +193,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             
             rightWall.name = "rightWall"
             rightWall.zPosition = -30
+            rightWall.color = world.tint
+            rightWall.colorBlendFactor = world.tintBlend
             rightWall.position = CGPoint(x: frame.maxX - 35, y: (-rightWallTexture.size().height * CGFloat(i)) + frame.midY)
             
             addChild(rightWall)
@@ -212,12 +222,18 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         rightRock.physicsBody?.isDynamic = false
         rightRock.physicsBody?.categoryBitMask = PhysicsCategory.rock
         
+        let world = World.all[worldIndex]
+
         leftRock.zPosition = -40
         leftRock.name = "leftRock"
-        
+        leftRock.color = world.tint
+        leftRock.colorBlendFactor = world.tintBlend
+
         rightRock.zPosition = -40
         rightRock.xScale = -1
         rightRock.name = "rightRock"
+        rightRock.color = world.tint
+        rightRock.colorBlendFactor = world.tintBlend
         
         let scoreCollision = SKSpriteNode(color: UIColor.red, size: CGSize(width: frame.width * 2, height: 35))
         scoreCollision.physicsBody = SKPhysicsBody(rectangleOf: scoreCollision.size)
@@ -430,6 +446,10 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     override func didMove(to view: SKView) {
+        let unlockedWorlds = max(UserDefaults.standard.integer(forKey: "unlockedWorldCount"), 1)
+        startWorldIndex = min(UserDefaults.standard.integer(forKey: "selectedWorld"), unlockedWorlds - 1)
+        worldIndex = startWorldIndex
+
         createPlayer()
         createDirt()
         createWalls()
@@ -507,6 +527,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             score += powerUps.scoreMultiplier
 
             tiltSensitivity = min(tiltSensitivity + 1.75, maxTiltSensitivity)
+            advanceWorldIfNeeded()
             return
         }
 
