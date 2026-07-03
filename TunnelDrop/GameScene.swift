@@ -50,9 +50,9 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     var fallSpeed = 10.0
     var fallGravity = -5.0
 
-    var flutterGravity = -0.4
-    var flutterDrainPerSecond = 0.12
-    var featherRefillAmount = 0.35
+    var flutterGravity = -0.1
+    var flutterDrainPerSecond = 0.18
+    var featherRefillAmount = 0.2
 
     var powerUps = PowerUpState()
     var powerUpLabel: SKLabelNode!
