@@ -144,6 +144,11 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         player.physicsBody?.allowsRotation = false
 //        player.physicsBody?.restitution = 1
         player.physicsBody?.friction = 0
+
+        if let tint = Skin.equipped().tint {
+            player.color = tint
+            player.colorBlendFactor = 0.55
+        }
        
         let playerFrame2 = SKTexture(imageNamed: "player-2")
         let playerFrame3 = SKTexture(imageNamed: "player-3")

@@ -53,6 +53,7 @@ struct HomeView: View {
     @ObservedObject var flow: GameFlow
     @AppStorage("coinBalance") private var coinBalance = 0
     @AppStorage("highScore") private var highScore = 0
+    @AppStorage("equippedSkin") private var equippedSkin = "classic"
     @State private var sheet: SheetKind?
 
     enum SheetKind: String, Identifiable {
@@ -98,6 +99,7 @@ struct HomeView: View {
                 .resizable()
                 .scaledToFit()
                 .frame(width: 110, height: 110)
+                .colorMultiply((Skin.all.first { $0.id == equippedSkin } ?? Skin.all[0]).previewColor)
                 .padding(28)
                 .background(Theme.card, in: Circle())
                 .padding(.top, 28)
@@ -140,7 +142,11 @@ struct HomeView: View {
         .padding(.bottom, 10)
         .background(Theme.background.ignoresSafeArea())
         .sheet(item: $sheet) { kind in
-            ComingSoonView(title: kind.rawValue)
+            if kind == .shop {
+                ShopView()
+            } else {
+                ComingSoonView(title: kind.rawValue)
+            }
         }
     }
 

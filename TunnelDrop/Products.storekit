@@ -1,0 +1,78 @@
+{
+  "identifier" : "8F1D2C3B-4A5E-4F6D-9C8B-7A6E5D4C3B2A",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "0.99",
+      "familyShareable" : false,
+      "internalID" : "C0IN0100-0000-0000-0000-000000000001",
+      "localizations" : [
+        {
+          "description" : "A pouch of 100 coins.",
+          "displayName" : "100 Coins",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.jerrycox.TunnelDrop.coins100",
+      "referenceName" : "100 Coins",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "3.99",
+      "familyShareable" : false,
+      "internalID" : "C0IN0550-0000-0000-0000-000000000002",
+      "localizations" : [
+        {
+          "description" : "A bag of 550 coins with a 10% bonus.",
+          "displayName" : "550 Coins",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.jerrycox.TunnelDrop.coins550",
+      "referenceName" : "550 Coins",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "9.99",
+      "familyShareable" : false,
+      "internalID" : "C0IN1500-0000-0000-0000-000000000003",
+      "localizations" : [
+        {
+          "description" : "A chest of 1500 coins with a 25% bonus.",
+          "displayName" : "1500 Coins",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.jerrycox.TunnelDrop.coins1500",
+      "referenceName" : "1500 Coins",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "2.99",
+      "familyShareable" : false,
+      "internalID" : "AD5REM00-0000-0000-0000-000000000004",
+      "localizations" : [
+        {
+          "description" : "Remove all ads permanently.",
+          "displayName" : "Remove Ads",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.jerrycox.TunnelDrop.removeads",
+      "referenceName" : "Remove Ads",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+
+  },
+  "subscriptionGroups" : [
+
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}
