@@ -7,39 +7,67 @@
 
 import UIKit
 import SpriteKit
-import GameplayKit
+import SwiftUI
 
 class GameViewController: UIViewController {
 
+    private let flow = GameFlow()
+    private var hostingController: UIHostingController<RootOverlayView>!
+
+    private var skView: SKView { view as! SKView }
+
     override func viewDidLoad() {
         super.viewDidLoad()
-        
-        if let view = self.view as! SKView? {
-            // Load the SKScene from 'GameScene.sks'
-            if let scene = SKScene(fileNamed: "GameScene") {
-                // Set the scale mode to scale to fit the window
-                scene.scaleMode = .aspectFill
-//                scene.scaleMode = .resizeFill
-                
-                // Present the scene
-                view.presentScene(scene)
-            }
-            
-            view.ignoresSiblingOrder = true
-            
-//            view.showsFPS = true
-//            view.showsNodeCount = true
-//            view.showsPhysics = true
+
+        skView.ignoresSiblingOrder = true
+//        skView.showsFPS = true
+//        skView.showsNodeCount = true
+//        skView.showsPhysics = true
+
+        presentScene()
+
+        flow.onPlay = { [weak self] in self?.startRun() }
+        flow.onRetry = { [weak self] in self?.startRun() }
+        flow.onHome = { [weak self] in self?.goHome() }
+
+        hostingController = UIHostingController(rootView: RootOverlayView(flow: flow))
+        hostingController.view.backgroundColor = .clear
+        addChild(hostingController)
+        hostingController.view.frame = view.bounds
+        hostingController.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        view.addSubview(hostingController.view)
+        hostingController.didMove(toParent: self)
+    }
+
+    // Each run gets a fresh scene; the previous one is discarded wholesale.
+    @discardableResult
+    private func presentScene() -> GameScene? {
+        guard let scene = GameScene(fileNamed: "GameScene") else { return nil }
+        scene.scaleMode = .aspectFill
+        scene.onGameOver = { [weak self] result in
+            guard let self else { return }
+            self.flow.screen = .gameOver(result)
+            self.hostingController.view.isUserInteractionEnabled = true
         }
+        skView.presentScene(scene)
+        return scene
+    }
+
+    private func startRun() {
+        guard let scene = presentScene() else { return }
+        flow.screen = .playing
+        hostingController.view.isUserInteractionEnabled = false
+        scene.startRun()
+    }
+
+    private func goHome() {
+        presentScene()
+        flow.screen = .home
+        hostingController.view.isUserInteractionEnabled = true
     }
 
     override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
         return .portrait
-//        if UIDevice.current.userInterfaceIdiom == .phone {
-//            return .allButUpsideDown
-//        } else {
-//            return .all
-//        }
     }
 
     override var prefersStatusBarHidden: Bool {

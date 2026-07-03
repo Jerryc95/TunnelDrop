@@ -14,6 +14,13 @@ enum GameState {
     case dead
 }
 
+struct GameResult {
+    let score: Int
+    let coinsEarned: Int
+    let previousBest: Int
+    let isNewBest: Bool
+}
+
 struct PhysicsCategory {
     static let player: UInt32 = 1 << 0
     static let wall: UInt32 = 1 << 1
@@ -99,6 +106,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     var dead: SKSpriteNode!
     
     var gameState = GameState.showingMenu
+
+    var onGameOver: ((GameResult) -> Void)?
     
     var backgroundMusic: SKAudioNode!
     
@@ -324,6 +333,28 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         flutterMeter = min(flutterMeter + amount, 1.0)
     }
     
+    // Called by GameViewController when the SwiftUI home screen's PLAY
+    // (or the game-over card's RETRY) is tapped.
+    func startRun() {
+        guard gameState == .showingMenu else { return }
+        gameState = .playing
+
+        title.removeFromParent()
+        playLabel.alpha = 0
+        highScoreLabel.alpha = 0
+
+        tiltSensitivity = 5.0
+        scoreLabel.alpha = 1
+        scoreCaption.alpha = 1
+        pauseButton.alpha = 1
+        flutterBarBackground.alpha = 1
+        coinLabel.text = "🪙 0"
+
+        startRocks()
+        startFeathers()
+        startPowerUps()
+    }
+
     func gameOver() {
         guard gameState == .playing else { return }
         if powerUps.lives > 0 {
@@ -332,26 +363,28 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             return
         }
         player.removeFromParent()
-        dead.alpha = 1
-        restartLabel.alpha = 1
         gameState = .dead
         speed = 0
         let deathSound = SKAction.playSoundFileNamed("death.mp3", waitForCompletion: false)
         run(deathSound)
         backgroundMusic.run(SKAction.stop())
         motionManager.stopAccelerometerUpdates()
+        pauseButton.alpha = 0
+        comboBadge.isHidden = true
 
+        let previousBest = highScore
         if score > highScore {
             highScore = score
             UserDefaults.standard.set(highScore, forKey: "highScore")
         }
         coinsThisRun = score / scorePerCoin
         coinBalance += coinsThisRun
-        highScoreLabel.text = "BEST: \(highScore)   🪙 +\(coinsThisRun)"
-        highScoreLabel.alpha = 1
-        pauseButton.alpha = 0
-        comboBadge.isHidden = true
-        coinLabel.text = "🪙 \(coinBalance)"
+
+        let result = GameResult(score: score, coinsEarned: coinsThisRun, previousBest: previousBest, isNewBest: score > previousBest)
+        // Scene speed is 0, so SKAction-based delays never fire; use GCD.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { [weak self] in
+            self?.onGameOver?(result)
+        }
     }
     
     func createScreens() {
@@ -488,27 +521,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         switch gameState {
         case .showingMenu:
-            gameState = .playing
-            
-            let fadeOut = SKAction.fadeOut(withDuration: 0.5)
-                   let remove = SKAction.removeFromParent()
-                   let wait = SKAction.wait(forDuration: 0.5)
-                   let activatePlayer = SKAction.run { [unowned self] in
-                       tiltSensitivity = 5.0
-                       scoreLabel.alpha = 1
-                       scoreCaption.alpha = 1
-                       pauseButton.alpha = 1
-                       playLabel.alpha = 0
-                       highScoreLabel.alpha = 0
-                       flutterBarBackground.alpha = 1
-                       coinLabel.text = "🪙 0"
-                       self.startRocks()
-                       self.startFeathers()
-                       self.startPowerUps()
-                   }
-            
-            let sequence = SKAction.sequence([fadeOut, wait, activatePlayer, remove])
-                  title.run(sequence)
+            // Run start is driven by the SwiftUI home screen via startRun().
+            break
         case .playing:
             if isPaused {
                 isPaused = false
@@ -524,11 +538,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             }
             isFluttering = true
         case .dead:
-            if let scene = GameScene(fileNamed: "GameScene") {
-                scene.scaleMode = .aspectFill
-                let transition = SKTransition.moveIn(with: SKTransitionDirection.down, duration: 1)
-                view?.presentScene(scene, transition: transition)
-            }
+            // Retry/home are driven by the SwiftUI game-over card.
+            break
         }
     }
     

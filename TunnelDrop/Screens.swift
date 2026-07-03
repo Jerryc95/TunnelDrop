@@ -1,0 +1,306 @@
+//
+//  Screens.swift
+//  TunnelDrop
+//
+//  SwiftUI surfaces layered over the SpriteKit view: home, game over,
+//  and placeholder sheets for shop/ranks/daily.
+//
+
+import SwiftUI
+
+enum Theme {
+    static let background = Color(red: 0.14, green: 0.10, blue: 0.08)
+    static let card = Color(red: 0.21, green: 0.16, blue: 0.13)
+    static let pill = Color(red: 0.11, green: 0.08, blue: 0.06)
+    static let orange = Color(red: 0.96, green: 0.57, blue: 0.24)
+    static let gold = Color(red: 0.94, green: 0.71, blue: 0.16)
+    static let green = Color(red: 0.30, green: 0.79, blue: 0.39)
+}
+
+final class GameFlow: ObservableObject {
+    enum Screen {
+        case home
+        case playing
+        case gameOver(GameResult)
+    }
+
+    @Published var screen = Screen.home
+
+    // Wired up by GameViewController.
+    var onPlay: (() -> Void)?
+    var onRetry: (() -> Void)?
+    var onHome: (() -> Void)?
+}
+
+struct RootOverlayView: View {
+    @ObservedObject var flow: GameFlow
+
+    var body: some View {
+        switch flow.screen {
+        case .home:
+            HomeView(flow: flow)
+        case .playing:
+            Color.clear
+        case .gameOver(let result):
+            GameOverView(result: result, flow: flow)
+        }
+    }
+}
+
+// MARK: - Home
+
+struct HomeView: View {
+    @ObservedObject var flow: GameFlow
+    @AppStorage("coinBalance") private var coinBalance = 0
+    @AppStorage("highScore") private var highScore = 0
+    @State private var sheet: SheetKind?
+
+    enum SheetKind: String, Identifiable {
+        case shop = "Shop"
+        case ranks = "Ranks"
+        case daily = "Daily"
+        case more = "More"
+        var id: String { rawValue }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Spacer()
+                Button {
+                    sheet = .shop
+                } label: {
+                    HStack(spacing: 6) {
+                        Text("🪙 \(coinBalance)")
+                            .font(.system(size: 17, weight: .heavy, design: .rounded))
+                        Image(systemName: "plus.circle.fill")
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 9)
+                    .background(Theme.pill, in: Capsule())
+                }
+            }
+            .padding(.top, 8)
+
+            Spacer()
+
+            VStack(spacing: -6) {
+                Text("TUNNEL")
+                    .font(.system(size: 52, weight: .black, design: .rounded))
+                    .foregroundStyle(Theme.gold)
+                Text("DROP")
+                    .font(.system(size: 60, weight: .black, design: .rounded))
+                    .foregroundStyle(Theme.orange)
+            }
+
+            Image("player-1")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 110, height: 110)
+                .padding(28)
+                .background(Theme.card, in: Circle())
+                .padding(.top, 28)
+
+            HStack(spacing: 8) {
+                Text("🏆")
+                Text("BEST")
+                    .foregroundStyle(.secondary)
+                Text("\(highScore)")
+            }
+            .font(.system(size: 18, weight: .heavy, design: .rounded))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 10)
+            .background(Theme.pill, in: Capsule())
+            .padding(.top, 22)
+
+            Spacer()
+
+            Button {
+                flow.onPlay?()
+            } label: {
+                Label("PLAY", systemImage: "play.fill")
+                    .font(.system(size: 26, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 20)
+                    .background(Theme.orange, in: RoundedRectangle(cornerRadius: 22))
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("WORLDS")
+                    .font(.system(size: 13, weight: .heavy, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .kerning(2)
+                HStack(spacing: 10) {
+                    worldChip("CAVE", unlocked: true, tint: Theme.orange)
+                    worldChip(nil, unlocked: false, tint: Color(red: 0.16, green: 0.13, blue: 0.35))
+                    worldChip(nil, unlocked: false, tint: Color(red: 0.10, green: 0.30, blue: 0.38))
+                    worldChip(nil, unlocked: false, tint: Color(red: 0.13, green: 0.30, blue: 0.16))
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 18)
+
+            HStack(spacing: 10) {
+                navButton("SHOP", emoji: "🏪") { sheet = .shop }
+                navButton("RANKS", emoji: "🏆") { sheet = .ranks }
+                navButton("DAILY", emoji: "🔥") { sheet = .daily }
+                navButton("MORE", emoji: "⚙️") { sheet = .more }
+            }
+            .padding(.top, 14)
+        }
+        .padding(.horizontal, 22)
+        .padding(.bottom, 10)
+        .background(Theme.background.ignoresSafeArea())
+        .sheet(item: $sheet) { kind in
+            ComingSoonView(title: kind.rawValue)
+        }
+    }
+
+    private func worldChip(_ name: String?, unlocked: Bool, tint: Color) -> some View {
+        Group {
+            if let name {
+                Text(name)
+                    .font(.system(size: 15, weight: .heavy, design: .rounded))
+                    .foregroundStyle(.white)
+            } else {
+                Image(systemName: "lock.fill")
+                    .foregroundStyle(.white.opacity(0.7))
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 14)
+        .background(tint.opacity(unlocked ? 0.25 : 1), in: RoundedRectangle(cornerRadius: 14))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(unlocked ? Theme.orange : .clear, lineWidth: 2)
+        )
+    }
+
+    private func navButton(_ label: String, emoji: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 6) {
+                Text(emoji)
+                    .font(.system(size: 24))
+                Text(label)
+                    .font(.system(size: 12, weight: .heavy, design: .rounded))
+                    .foregroundStyle(.white)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(Theme.card, in: RoundedRectangle(cornerRadius: 16))
+        }
+    }
+}
+
+// MARK: - Game over
+
+struct GameOverView: View {
+    let result: GameResult
+    @ObservedObject var flow: GameFlow
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.55).ignoresSafeArea()
+
+            VStack(spacing: 14) {
+                if result.isNewBest {
+                    Text("⭐️ NEW BEST!")
+                        .font(.system(size: 17, weight: .black, design: .rounded))
+                        .foregroundStyle(.black)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 9)
+                        .background(Theme.gold, in: Capsule())
+                }
+
+                Text("SCORE")
+                    .font(.system(size: 14, weight: .heavy, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .kerning(3)
+                    .padding(.top, 4)
+                Text("\(result.score)")
+                    .font(.system(size: 72, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+
+                HStack(spacing: 12) {
+                    statTile(title: "PREV BEST", value: "\(result.previousBest)", highlight: false)
+                    statTile(title: "EARNED", value: "🪙 +\(result.coinsEarned)", highlight: true)
+                }
+
+                Button {
+                    flow.onRetry?()
+                } label: {
+                    Label("RETRY", systemImage: "arrow.counterclockwise")
+                        .font(.system(size: 22, weight: .black, design: .rounded))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(Theme.orange, in: RoundedRectangle(cornerRadius: 18))
+                }
+                .padding(.top, 10)
+
+                Button {
+                    flow.onHome?()
+                } label: {
+                    Label("HOME", systemImage: "house.fill")
+                        .font(.system(size: 22, weight: .black, design: .rounded))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(Theme.pill, in: RoundedRectangle(cornerRadius: 18))
+                }
+
+                ShareLink(item: "I scored \(result.score) in Tunnel Drop! Can you beat it? 🐦") {
+                    Label("SHARE SCORE", systemImage: "square.and.arrow.up")
+                        .font(.system(size: 14, weight: .heavy, design: .rounded))
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.top, 6)
+            }
+            .padding(24)
+            .background(Theme.card, in: RoundedRectangle(cornerRadius: 28))
+            .padding(.horizontal, 26)
+        }
+    }
+
+    private func statTile(title: String, value: String, highlight: Bool) -> some View {
+        VStack(spacing: 6) {
+            Text(title)
+                .font(.system(size: 12, weight: .heavy, design: .rounded))
+                .foregroundStyle(.secondary)
+                .kerning(1.5)
+            Text(value)
+                .font(.system(size: 24, weight: .black, design: .rounded))
+                .foregroundStyle(highlight ? Theme.gold : .white)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 14)
+        .background(Theme.pill, in: RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(highlight ? Theme.gold.opacity(0.6) : .clear, lineWidth: 1.5)
+        )
+    }
+}
+
+// MARK: - Placeholder
+
+struct ComingSoonView: View {
+    let title: String
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Text(title)
+                .font(.system(size: 34, weight: .black, design: .rounded))
+                .foregroundStyle(.white)
+            Text("Coming soon")
+                .font(.system(size: 17, weight: .semibold, design: .rounded))
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Theme.background.ignoresSafeArea())
+        .presentationDetents([.medium, .large])
+    }
+}
