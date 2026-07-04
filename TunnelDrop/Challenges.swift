@@ -315,11 +315,8 @@ struct DailyView: View {
                 } label: {
                     Text("CLAIM")
                         .font(.system(size: 14, weight: .black, design: .rounded))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .background(Theme.green, in: Capsule())
                 }
+                .buttonStyle(ChunkyButtonStyle(color: Theme.green, edge: Theme.greenEdge, cornerRadius: 12, verticalPadding: 10, fullWidth: false))
             } else {
                 VStack(spacing: 2) {
                     Text("🪙")

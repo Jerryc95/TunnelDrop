@@ -12,9 +12,37 @@ enum Theme {
     static let background = Color(red: 0.14, green: 0.10, blue: 0.08)
     static let card = Color(red: 0.21, green: 0.16, blue: 0.13)
     static let pill = Color(red: 0.11, green: 0.08, blue: 0.06)
+    static let pillEdge = Color(red: 0.05, green: 0.035, blue: 0.025)
     static let orange = Color(red: 0.96, green: 0.57, blue: 0.24)
+    static let orangeEdge = Color(red: 0.70, green: 0.37, blue: 0.12)
     static let gold = Color(red: 0.94, green: 0.71, blue: 0.16)
     static let green = Color(red: 0.30, green: 0.79, blue: 0.39)
+    static let greenEdge = Color(red: 0.16, green: 0.52, blue: 0.24)
+}
+
+// Chunky "game button": raised face over a darker bottom edge; the face
+// drops onto the edge while pressed.
+struct ChunkyButtonStyle: ButtonStyle {
+    var color: Color
+    var edge: Color
+    var cornerRadius: CGFloat = 14
+    var verticalPadding: CGFloat = 12
+    var fullWidth = true
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(.white)
+            .padding(.vertical, verticalPadding)
+            .frame(maxWidth: fullWidth ? .infinity : nil)
+            .padding(.horizontal, fullWidth ? 0 : 18)
+            .background(RoundedRectangle(cornerRadius: cornerRadius).fill(color))
+            .offset(y: configuration.isPressed ? 4 : 0)
+            .background(
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .fill(edge)
+                    .offset(y: 4)
+            )
+    }
 }
 
 final class GameFlow: ObservableObject {
@@ -124,11 +152,8 @@ struct HomeView: View {
             } label: {
                 Label("PLAY", systemImage: "play.fill")
                     .font(.system(size: 26, weight: .black, design: .rounded))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 20)
-                    .background(Theme.orange, in: RoundedRectangle(cornerRadius: 22))
             }
+            .buttonStyle(ChunkyButtonStyle(color: Theme.orange, edge: Theme.orangeEdge, cornerRadius: 22, verticalPadding: 20))
 
             HStack(spacing: 10) {
                 navButton("SHOP", emoji: "🏪") { sheet = .shop }
@@ -208,11 +233,8 @@ struct GameOverView: View {
                 } label: {
                     Label("RETRY", systemImage: "arrow.counterclockwise")
                         .font(.system(size: 22, weight: .black, design: .rounded))
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(Theme.orange, in: RoundedRectangle(cornerRadius: 18))
                 }
+                .buttonStyle(ChunkyButtonStyle(color: Theme.orange, edge: Theme.orangeEdge, cornerRadius: 18, verticalPadding: 16))
                 .padding(.top, 10)
 
                 Button {
@@ -220,11 +242,8 @@ struct GameOverView: View {
                 } label: {
                     Label("HOME", systemImage: "house.fill")
                         .font(.system(size: 22, weight: .black, design: .rounded))
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(Theme.pill, in: RoundedRectangle(cornerRadius: 18))
                 }
+                .buttonStyle(ChunkyButtonStyle(color: Theme.pill, edge: Theme.pillEdge, cornerRadius: 18, verticalPadding: 16))
 
                 ShareLink(item: "I scored \(result.score) in Tunnel Drop! Can you beat it? 🐦") {
                     Label("SHARE SCORE", systemImage: "square.and.arrow.up")

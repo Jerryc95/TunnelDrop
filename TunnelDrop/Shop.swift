@@ -109,6 +109,11 @@ struct ShopView: View {
         Set(ownedSkinsRaw.split(separator: ",").map(String.init))
     }
 
+    // Best-value pack sits in the middle, like the mockup.
+    private var orderedPacks: [(id: String, coins: Int, bonus: String?, fallbackPrice: String)] {
+        [ShopStore.coinPacks[0], ShopStore.coinPacks[2], ShopStore.coinPacks[1]]
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
@@ -127,10 +132,11 @@ struct ShopView: View {
 
                 sectionHeader("COIN PACKS")
                 HStack(spacing: 10) {
-                    ForEach(ShopStore.coinPacks, id: \.id) { pack in
+                    ForEach(orderedPacks, id: \.id) { pack in
                         coinPackTile(pack)
                     }
                 }
+                .padding(.top, 6)
 
                 sectionHeader("BIRD SKINS")
                 HStack(spacing: 10) {
@@ -187,11 +193,8 @@ struct ShopView: View {
             } label: {
                 Text(product?.displayPrice ?? pack.fallbackPrice)
                     .font(.system(size: 15, weight: .black, design: .rounded))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .background(Theme.green, in: Capsule())
             }
+            .buttonStyle(ChunkyButtonStyle(color: Theme.green, edge: Theme.greenEdge, cornerRadius: 12, verticalPadding: 10))
             .disabled(product == nil)
             .opacity(product == nil ? 0.5 : 1)
         }
@@ -234,35 +237,33 @@ struct ShopView: View {
                 .font(.system(size: 15, weight: .heavy, design: .rounded))
                 .foregroundStyle(.white)
 
-            Button {
-                if isEquipped { return }
-                if owned {
-                    equippedSkin = skin.id
-                } else if canAfford {
-                    coinBalance -= skin.price
-                    ownedSkinsRaw += ",\(skin.id)"
-                    equippedSkin = skin.id
-                }
-            } label: {
-                Group {
-                    if isEquipped {
-                        Text("EQUIPPED")
-                    } else if owned {
-                        Text("EQUIP")
-                    } else {
-                        Text("🪙 \(skin.price)")
+            if isEquipped {
+                Text("EQUIPPED")
+                    .font(.system(size: 12, weight: .black, design: .rounded))
+                    .foregroundStyle(Theme.orange)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 9)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Theme.orange, lineWidth: 1.5)
+                    )
+            } else {
+                Button {
+                    if owned {
+                        equippedSkin = skin.id
+                    } else if canAfford {
+                        coinBalance -= skin.price
+                        ownedSkinsRaw += ",\(skin.id)"
+                        equippedSkin = skin.id
                     }
+                } label: {
+                    Text(owned ? "EQUIP" : "🪙 \(skin.price)")
+                        .font(.system(size: 12, weight: .black, design: .rounded))
                 }
-                .font(.system(size: 12, weight: .black, design: .rounded))
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
-                .background(
-                    isEquipped ? Theme.orange.opacity(0.35) : (owned || canAfford ? Theme.orange : Theme.pill),
-                    in: Capsule()
-                )
+                .buttonStyle(ChunkyButtonStyle(color: Theme.orange, edge: Theme.orangeEdge, cornerRadius: 12, verticalPadding: 9))
+                .disabled(!owned && !canAfford)
+                .opacity(!owned && !canAfford ? 0.45 : 1)
             }
-            .disabled(!owned && !canAfford && !isEquipped)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 14)
@@ -298,11 +299,8 @@ struct ShopView: View {
                 } label: {
                     Text(store.products[ShopStore.removeAdsID]?.displayPrice ?? "$2.99")
                         .font(.system(size: 15, weight: .black, design: .rounded))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .background(Theme.green, in: Capsule())
                 }
+                .buttonStyle(ChunkyButtonStyle(color: Theme.green, edge: Theme.greenEdge, cornerRadius: 12, verticalPadding: 10, fullWidth: false))
                 .disabled(store.products[ShopStore.removeAdsID] == nil)
                 .opacity(store.products[ShopStore.removeAdsID] == nil ? 0.5 : 1)
             }
