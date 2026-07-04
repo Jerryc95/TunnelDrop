@@ -72,7 +72,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     var flutterUsesThisRun = 0
     var gatesThisRun = 0
     var distanceThisRun = 0.0
-    var metersPerSecond = 10.0
+    var metersPerSecond = 2.0
     var feathersThisRun = 0
     var ghostUsesThisRun = 0
     var powerUpsCollectedThisRun = 0
