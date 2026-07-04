@@ -80,7 +80,7 @@ final class ShopStore: ObservableObject {
     }
 
     private func listenForTransactions() async {
-        for await update in Transaction.updates {
+        for await update in StoreKit.Transaction.updates {
             if case .verified(let transaction) = update {
                 grant(transaction)
                 await transaction.finish()
@@ -88,7 +88,7 @@ final class ShopStore: ObservableObject {
         }
     }
 
-    private func grant(_ transaction: Transaction) {
+    private func grant(_ transaction: StoreKit.Transaction) {
         let defaults = UserDefaults.standard
         if let pack = Self.coinPacks.first(where: { $0.id == transaction.productID }) {
             defaults.set(defaults.integer(forKey: "coinBalance") + pack.coins, forKey: "coinBalance")
