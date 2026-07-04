@@ -14,29 +14,134 @@ enum GameState {
     case dead
 }
 
+struct GameResult {
+    let score: Int
+    let coinsEarned: Int
+    let previousBest: Int
+    let isNewBest: Bool
+}
+
+struct PhysicsCategory {
+    static let player: UInt32 = 1 << 0
+    static let wall: UInt32 = 1 << 1
+    static let rock: UInt32 = 1 << 2
+    static let scoreGate: UInt32 = 1 << 3
+    static let boundary: UInt32 = 1 << 4
+    static let feather: UInt32 = 1 << 5
+    static let powerUp: UInt32 = 1 << 6
+}
+
+// SKPhysicsBody(texture:) traps with EXC_BREAKPOINT in the iOS simulator (long-standing
+// SpriteKit bug), so simulator builds use approximate shape bodies; devices keep
+// pixel-accurate texture bodies.
+func texturePhysicsBody(texture: SKTexture, size: CGSize) -> SKPhysicsBody {
+    #if targetEnvironment(simulator)
+    return SKPhysicsBody(rectangleOf: size)
+    #else
+    return SKPhysicsBody(texture: texture, size: size)
+    #endif
+}
+
 class GameScene: SKScene, SKPhysicsContactDelegate {
     var motionManager = CMMotionManager()
     var tiltSensitivity = 0.0
+    var maxTiltSensitivity = 40.0
     var flapSpeed = 0.15
     var fallSpeed = 10.0
-    
+    var fallGravity = -5.0
+
+    var flutterGravity = -0.1
+    var flutterDrainPerSecond = 0.18
+    // Continuous holding drains progressively faster; taps stay cheap.
+    var flutterDrainRamp = 0.35
+    var flutterHoldTime = 0.0
+    var featherRefillAmount = 0.12
+    var flutterCapacity = 1.0
+    var overfillOwned = false
+    var flutterMaxFallSpeed: CGFloat = -80
+    var flutterWorldSpeed: CGFloat = 0.55
+
+    var powerUps = PowerUpState()
+    var powerUpLabel: SKLabelNode!
+    var magnetRadius: CGFloat = 160
+    var magnetPull = 4.0
+    var ghostDuration = 5.0
+
+    var patternQueue: [CGFloat] = []
+
+    var dirtNode: SKSpriteNode!
+    var worldIndex = 0
+    var startWorldIndex = 0
+    var scorePerWorld = 50
+    var baseWorldSpeed: CGFloat = 1.0
+    var worldSpeedPerZone: CGFloat = 0.1
+    var maxWorldSpeed: CGFloat = 1.8
+
+    var coinLabel: SKLabelNode!
+    var coinsThisRun = 0
+    var flutterUsesThisRun = 0
+    var gatesThisRun = 0
+    var distanceThisRun = 0.0
+    var metersPerSecond = 2.0
+    var feathersThisRun = 0
+    var ghostUsesThisRun = 0
+    var powerUpsCollectedThisRun = 0
+    var zonesClearedThisRun = 0
+    var nearMissesThisRun = 0
+    var lastCoinDisplay = -1
+    var coinBalance = UserDefaults.standard.integer(forKey: "coinBalance") {
+        didSet {
+            UserDefaults.standard.set(coinBalance, forKey: "coinBalance")
+        }
+    }
+
+    // .aspectFill crops the 750x1334 scene horizontally on tall phones (and
+    // vertically on iPads), so HUD anchors derive from the visible region.
+    var hudInsetX: CGFloat {
+        guard let view else { return 0 }
+        let scale = max(view.bounds.width / frame.width, view.bounds.height / frame.height)
+        return (frame.width - view.bounds.width / scale) / 2
+    }
+
+    var hudTopY: CGFloat {
+        guard let view else { return frame.maxY - 105 }
+        let scale = max(view.bounds.width / frame.width, view.bounds.height / frame.height)
+        let cropY = (frame.height - view.bounds.height / scale) / 2
+        return frame.maxY - cropY - 105
+    }
+    var flutterMeter = 1.0
+    var isFluttering = false
+    var flutterBarBackground: SKSpriteNode!
+    var flutterBarFill: SKSpriteNode!
+    var flutterBarOverfill: SKSpriteNode!
+    var lastUpdateTime: TimeInterval = 0
+
     var player: SKSpriteNode!
-    
+
     var scoreLabel: SKLabelNode!
+    var scoreCaption: SKLabelNode!
+    var comboBadge: SKLabelNode!
+    var pauseButton: SKLabelNode!
+    var pausedLabel: SKLabelNode!
     var playLabel: SKLabelNode!
     var restartLabel: SKLabelNode!
+    var highScoreLabel: SKLabelNode!
+
+    var highScore = UserDefaults.standard.integer(forKey: "highScore")
     
     var title: SKSpriteNode!
     var dead: SKSpriteNode!
     
     var gameState = GameState.showingMenu
+    var runCommitted = false
+
+    var onGameOver: ((GameResult) -> Void)?
     
     var backgroundMusic: SKAudioNode!
     
     var score = 0 {
         didSet {
-            scoreLabel.text = "SCORE: \(score)"
-//
+            scoreLabel.text = "\(score)"
         }
     }
     
@@ -48,13 +153,24 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         addChild(player)
         
+        #if targetEnvironment(simulator)
+        player.physicsBody = SKPhysicsBody(circleOfRadius: playerTexture.size().height / 2)
+        #else
         player.physicsBody = SKPhysicsBody(texture: playerTexture, size: playerTexture.size())
-        player.physicsBody!.contactTestBitMask = player.physicsBody!.collisionBitMask
+        #endif
+        player.physicsBody!.categoryBitMask = PhysicsCategory.player
+        player.physicsBody!.collisionBitMask = PhysicsCategory.wall | PhysicsCategory.rock | PhysicsCategory.boundary
+        player.physicsBody!.contactTestBitMask = PhysicsCategory.wall | PhysicsCategory.rock | PhysicsCategory.scoreGate | PhysicsCategory.feather | PhysicsCategory.powerUp
         player.physicsBody?.isDynamic = true
         
         player.physicsBody?.allowsRotation = false
 //        player.physicsBody?.restitution = 1
         player.physicsBody?.friction = 0
+
+        if let tint = Skin.equipped().tint {
+            player.color = tint
+            player.colorBlendFactor = 0.55
+        }
        
         let playerFrame2 = SKTexture(imageNamed: "player-2")
         let playerFrame3 = SKTexture(imageNamed: "player-3")
@@ -68,37 +184,44 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     func createDirt() {
-        let dirt = SKSpriteNode(color: UIColor(hue: 360, saturation: 0.25, brightness: 0.24, alpha: 1), size: CGSize(width: frame.width, height: frame.height))
-        dirt.anchorPoint = CGPoint(x: 0, y: 0)
-        
-        addChild(dirt)
-        dirt.zPosition = -50
+        dirtNode = SKSpriteNode(color: World.all[worldIndex].dirtColor, size: CGSize(width: frame.width, height: frame.height))
+        dirtNode.anchorPoint = CGPoint(x: 0, y: 0)
+
+        addChild(dirtNode)
+        dirtNode.zPosition = -50
     }
     
     func createWalls() {
         let leftWallTexture = SKTexture(imageNamed: "wallLeft")
         let rightWallTexture = SKTexture(imageNamed: "wallRight")
+        let world = World.all[worldIndex]
         
         
         for i in 0...1 {
             let leftWall = SKSpriteNode(texture: leftWallTexture)
             let rightWall = SKSpriteNode(texture: rightWallTexture)
             
-            leftWall.physicsBody = SKPhysicsBody(texture: leftWallTexture, size: CGSize(width: leftWall.frame.width * 0.98, height: leftWall.frame.height))
+            leftWall.physicsBody = texturePhysicsBody(texture: leftWallTexture, size: CGSize(width: leftWall.frame.width * 0.98, height: leftWall.frame.height))
             leftWall.physicsBody?.isDynamic = false
+            leftWall.physicsBody?.categoryBitMask = PhysicsCategory.wall
             
             leftWall.name = "leftWall"
             leftWall.zPosition = -30
+            leftWall.color = world.tint
+            leftWall.colorBlendFactor = world.tintBlend
             leftWall.position = CGPoint(x: 35, y: (-leftWallTexture.size().height * CGFloat(i)) + frame.midY)
             
             addChild(leftWall)
             
             
-            rightWall.physicsBody = SKPhysicsBody(texture: rightWallTexture, size: CGSize(width: rightWall.frame.width * 0.98, height: leftWall.frame.height))
+            rightWall.physicsBody = texturePhysicsBody(texture: rightWallTexture, size: CGSize(width: rightWall.frame.width * 0.98, height: leftWall.frame.height))
             rightWall.physicsBody?.isDynamic = false
+            rightWall.physicsBody?.categoryBitMask = PhysicsCategory.wall
             
             rightWall.name = "rightWall"
             rightWall.zPosition = -30
+            rightWall.color = world.tint
+            rightWall.colorBlendFactor = world.tintBlend
             rightWall.position = CGPoint(x: frame.maxX - 35, y: (-rightWallTexture.size().height * CGFloat(i)) + frame.midY)
             
             addChild(rightWall)
@@ -118,22 +241,33 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         let leftRock = SKSpriteNode(texture: rockTexture)
         let rightRock = SKSpriteNode(texture: rockTexture)
         
-        leftRock.physicsBody = SKPhysicsBody(texture: rockTexture, size: leftRock.size)
+        leftRock.physicsBody = texturePhysicsBody(texture: rockTexture, size: leftRock.size)
         leftRock.physicsBody?.isDynamic = false
-        
-        rightRock.physicsBody = SKPhysicsBody(texture: rockTexture, size: rightRock.size)
+        leftRock.physicsBody?.categoryBitMask = PhysicsCategory.rock
+
+        rightRock.physicsBody = texturePhysicsBody(texture: rockTexture, size: rightRock.size)
         rightRock.physicsBody?.isDynamic = false
+        rightRock.physicsBody?.categoryBitMask = PhysicsCategory.rock
         
+        let world = World.all[worldIndex]
+
         leftRock.zPosition = -40
         leftRock.name = "leftRock"
-        
+        leftRock.color = world.tint
+        leftRock.colorBlendFactor = world.tintBlend
+
         rightRock.zPosition = -40
         rightRock.xScale = -1
         rightRock.name = "rightRock"
+        rightRock.color = world.tint
+        rightRock.colorBlendFactor = world.tintBlend
         
         let scoreCollision = SKSpriteNode(color: UIColor.red, size: CGSize(width: frame.width * 2, height: 35))
         scoreCollision.physicsBody = SKPhysicsBody(rectangleOf: scoreCollision.size)
         scoreCollision.physicsBody?.isDynamic = false
+        scoreCollision.physicsBody?.categoryBitMask = PhysicsCategory.scoreGate
+        scoreCollision.physicsBody?.collisionBitMask = 0
+        scoreCollision.physicsBody?.contactTestBitMask = PhysicsCategory.player
         scoreCollision.alpha = 0
         scoreCollision.name = "detectScore"
         
@@ -142,12 +276,11 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         addChild(scoreCollision)
         
         let yPosition = CGFloat.random(in: -120...0)
-        let xPosition = leftRock.frame.width + CGFloat.random(in: -260...20)
-        let rockDistance: CGFloat = 100
-        //        let rockDistance = CGFloat.random(in: 70...130)
-        
-        leftRock.position = CGPoint(x: xPosition - rockDistance, y: yPosition)
-        rightRock.position = CGPoint(x: xPosition + leftRock.frame.width + rockDistance, y: yPosition)
+        let halfGap: CGFloat = 100
+        let gapCenter = gapCenterX(for: nextGapPosition())
+
+        leftRock.position = CGPoint(x: gapCenter - halfGap - leftRock.frame.width / 2, y: yPosition)
+        rightRock.position = CGPoint(x: gapCenter + halfGap + rightRock.frame.width / 2, y: yPosition)
         scoreCollision.position = CGPoint(x: 1, y: yPosition - 25)
         
         let endPosition = frame.height * 1.5
@@ -174,26 +307,219 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     func createScore() {
+        scoreCaption = SKLabelNode(fontNamed: "MarkerFelt-Wide")
+        scoreCaption.fontSize = 24
+        scoreCaption.position = CGPoint(x: frame.midX, y: hudTopY)
+        scoreCaption.text = "SCORE"
+        scoreCaption.fontColor = UIColor(white: 0.8, alpha: 1)
+        scoreCaption.zPosition = 90
+        scoreCaption.alpha = 0
+        addChild(scoreCaption)
+
         scoreLabel = SKLabelNode(fontNamed: "MarkerFelt-Wide")
-        scoreLabel.fontSize = 40
-        scoreLabel.position = CGPoint(x: frame.midX, y: frame.maxY - 115)
-        scoreLabel.text = "SCORE: 0"
+        scoreLabel.fontSize = 68
+        scoreLabel.position = CGPoint(x: frame.midX, y: hudTopY - 70)
+        scoreLabel.text = "0"
         scoreLabel.fontColor = UIColor.white
+        scoreLabel.zPosition = 90
         scoreLabel.alpha = 0
-        
         addChild(scoreLabel)
+
+        comboBadge = SKLabelNode(fontNamed: "MarkerFelt-Wide")
+        comboBadge.fontSize = 26
+        comboBadge.position = CGPoint(x: frame.midX, y: hudTopY - 115)
+        comboBadge.text = "⭐️ x3 COMBO"
+        comboBadge.fontColor = UIColor.orange
+        comboBadge.zPosition = 90
+        comboBadge.isHidden = true
+        addChild(comboBadge)
+
+        pauseButton = SKLabelNode(text: "⏸️")
+        pauseButton.fontSize = 44
+        pauseButton.position = CGPoint(x: frame.minX + hudInsetX + 50, y: hudTopY - 35)
+        pauseButton.zPosition = 90
+        pauseButton.name = "pauseButton"
+        pauseButton.alpha = 0
+        addChild(pauseButton)
+    }
+
+    func createFlutterGauge() {
+        let barSize = CGSize(width: 22, height: 260)
+
+        flutterBarBackground = SKSpriteNode(color: UIColor(white: 0.1, alpha: 0.6), size: barSize)
+        flutterBarBackground.position = CGPoint(x: frame.maxX - hudInsetX - 45, y: frame.midY + 120)
+        flutterBarBackground.zPosition = 90
+        flutterBarBackground.alpha = 0
+        addChild(flutterBarBackground)
+
+        flutterBarFill = SKSpriteNode(color: UIColor.cyan, size: barSize)
+        flutterBarFill.anchorPoint = CGPoint(x: 0.5, y: 0)
+        flutterBarFill.position = CGPoint(x: 0, y: -barSize.height / 2)
+        flutterBarFill.zPosition = 1
+        flutterBarBackground.addChild(flutterBarFill)
+
+        // Overfill reserve rises from the bottom over the cyan fill.
+        flutterBarOverfill = SKSpriteNode(color: UIColor.systemGreen, size: barSize)
+        flutterBarOverfill.anchorPoint = CGPoint(x: 0.5, y: 0)
+        flutterBarOverfill.position = CGPoint(x: 0, y: -barSize.height / 2)
+        flutterBarOverfill.zPosition = 2
+        flutterBarOverfill.yScale = 0
+        flutterBarBackground.addChild(flutterBarOverfill)
+
+        let bolt = SKLabelNode(text: "⚡️")
+        bolt.fontSize = 34
+        bolt.verticalAlignmentMode = .center
+        bolt.position = CGPoint(x: 0, y: barSize.height / 2 + 34)
+        flutterBarBackground.addChild(bolt)
+
+        let caption = SKLabelNode(fontNamed: "MarkerFelt-Wide")
+        caption.fontSize = 18
+        caption.text = "FLUTTER"
+        caption.fontColor = UIColor.cyan
+        caption.position = CGPoint(x: 0, y: -barSize.height / 2 - 36)
+        flutterBarBackground.addChild(caption)
+
+    }
+
+    func refillFlutter(_ amount: Double) {
+        if !overfillOwned {
+            flutterMeter = min(flutterMeter + amount, flutterCapacity)
+            return
+        }
+        var remaining = amount
+        if flutterMeter < flutterCapacity {
+            let toNormal = min(remaining, flutterCapacity - flutterMeter)
+            flutterMeter += toNormal
+            remaining -= toNormal
+        }
+        // Above the cap, feathers credit at half rate, up to +100% extra gauge.
+        flutterMeter = min(flutterMeter + remaining * 0.5, flutterCapacity + 1.0)
     }
     
+    // Called by GameViewController when the SwiftUI home screen's PLAY
+    // (or the game-over card's RETRY) is tapped.
+    func startRun() {
+        guard gameState == .showingMenu else { return }
+        gameState = .playing
+
+        title.removeFromParent()
+        playLabel.alpha = 0
+        highScoreLabel.alpha = 0
+
+        tiltSensitivity = 5.0
+        scoreLabel.alpha = 1
+        scoreCaption.alpha = 1
+        pauseButton.alpha = 1
+        flutterBarBackground.alpha = 1
+        coinLabel.text = "🪙 0"
+
+        startRocks()
+        startFeathers()
+        startPowerUps()
+    }
+
     func gameOver() {
+        guard gameState == .playing else { return }
+        // Contacts already queued this frame land after a revive; ignore them.
+        guard powerUps.reviveTime <= 0 else { return }
+        if powerUps.lives > 0 {
+            powerUps.lives -= 1
+            revive()
+            return
+        }
         player.removeFromParent()
-        dead.alpha = 1
-        restartLabel.alpha = 1
         gameState = .dead
         speed = 0
         let deathSound = SKAction.playSoundFileNamed("death.mp3", waitForCompletion: false)
         run(deathSound)
         backgroundMusic.run(SKAction.stop())
+        motionManager.stopAccelerometerUpdates()
+        pauseButton.alpha = 0
+        comboBadge.isHidden = true
 
+        // Rewards are NOT banked here — a revive would double-count them.
+        // finalizeRun() commits when the player leaves the game-over card.
+        coinsThisRun = coinsEarned(newBest: score > highScore)
+        let result = GameResult(score: score, coinsEarned: coinsThisRun, previousBest: highScore, isNewBest: score > highScore)
+        // Scene speed is 0, so SKAction-based delays never fire; use GCD.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { [weak self] in
+            self?.onGameOver?(result)
+        }
+    }
+
+    // Coin payout: 5 base, +2 per 10m fallen, +15 per zone cleared,
+    // +1 per near miss, +25 for a personal best.
+    func coinsEarned(newBest: Bool) -> Int {
+        5 + Int(distanceThisRun / 10) * 2 + zonesClearedThisRun * 15 + nearMissesThisRun + (newBest ? 25 : 0)
+    }
+
+    // Counts squeaking past a spike with almost no clearance.
+    func checkNearMiss() {
+        let playerHalfWidth = player.frame.width / 2
+        let playerX = player.position.x
+        let playerY = player.position.y
+        var margin = CGFloat.greatestFiniteMagnitude
+
+        enumerateChildNodes(withName: "leftRock") { node, _ in
+            if abs(node.position.y - playerY) < 150 {
+                let edge = node.position.x + node.frame.width / 2
+                margin = min(margin, playerX - playerHalfWidth - edge)
+            }
+        }
+        enumerateChildNodes(withName: "rightRock") { node, _ in
+            if abs(node.position.y - playerY) < 150 {
+                let edge = node.position.x - node.frame.width / 2
+                margin = min(margin, edge - (playerX + playerHalfWidth))
+            }
+        }
+
+        if margin < 12 {
+            nearMissesThisRun += 1
+        }
+    }
+
+    func finalizeRun() {
+        guard gameState == .dead, !runCommitted else { return }
+        runCommitted = true
+        let isNewBest = score > highScore
+        if isNewBest {
+            highScore = score
+            UserDefaults.standard.set(highScore, forKey: "highScore")
+        }
+        coinsThisRun = coinsEarned(newBest: isNewBest)
+        coinBalance += coinsThisRun
+
+        let stats = RunStats(
+            score: score,
+            coins: coinsThisRun,
+            meters: distanceThisRun,
+            feathers: feathersThisRun,
+            ghostUses: ghostUsesThisRun,
+            powerUps: powerUpsCollectedThisRun,
+            zoneReached: zonesClearedThisRun + 1,
+            nearMisses: nearMissesThisRun,
+            flutterUses: flutterUsesThisRun
+        )
+        DailyChallengeStore.shared.recordRun(stats)
+        LifetimeStats.record(stats)
+        GameCenterManager.shared.submit(score: score)
+    }
+
+    // Paid/ad revive from the game-over card: resumes the same run.
+    func reviveFromGameOver() {
+        guard gameState == .dead, !runCommitted else { return }
+        gameState = .playing
+        speed = 1
+
+        player.position = CGPoint(x: frame.width / 2, y: frame.height * 0.68)
+        player.physicsBody?.velocity = .zero
+        addChild(player)
+
+        powerUps.reviveTime = 2.5
+        refreshPlayerPhysics()
+        motionManager.startAccelerometerUpdates()
+        backgroundMusic.run(SKAction.play())
+        pauseButton.alpha = 1
     }
     
     func createScreens() {
@@ -220,23 +546,50 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         restartLabel.fontColor = UIColor.white
         restartLabel.alpha = 0
         addChild(restartLabel)
+
+        pausedLabel = SKLabelNode(fontNamed: "Courier")
+        pausedLabel.fontSize = 30
+        pausedLabel.position = CGPoint(x: frame.midX, y: frame.midY)
+        pausedLabel.text = "PAUSED - TAP TO RESUME"
+        pausedLabel.fontColor = UIColor.white
+        pausedLabel.zPosition = 100
+        pausedLabel.isHidden = true
+        addChild(pausedLabel)
+
+        highScoreLabel = SKLabelNode(fontNamed: "Courier")
+        highScoreLabel.fontSize = 24
+        highScoreLabel.position = CGPoint(x: frame.midX, y: frame.minY + 200)
+        highScoreLabel.text = "BEST: \(highScore)"
+        highScoreLabel.fontColor = UIColor.white
+        addChild(highScoreLabel)
     }
     
-    
-    
-   
-    
     override func didMove(to view: SKView) {
+        flutterCapacity = 1.0 + 0.1 * Double(UserDefaults.standard.integer(forKey: "flutterLevel"))
+        overfillOwned = UserDefaults.standard.bool(forKey: "overfillOwned")
+        flutterMeter = flutterCapacity
+
+        let magnetLevel = UserDefaults.standard.integer(forKey: "magnetLevel")
+        magnetRadius = 160 + CGFloat(magnetLevel) * 50
+        magnetPull = 4.0 + Double(magnetLevel)
+        ghostDuration = 5.0 + Double(UserDefaults.standard.integer(forKey: "ghostLevel"))
+
         createPlayer()
         createDirt()
         createWalls()
-//        startRocks()
         createScore()
+        createFlutterGauge()
+        createPowerUpHUD()
+        createCoinHUD()
         createScreens()
-        
+
         motionManager.startAccelerometerUpdates()
-        
+
         physicsWorld.contactDelegate = self
+        physicsWorld.gravity = .zero
+
+        physicsBody = SKPhysicsBody(edgeLoopFrom: frame.inset(by: UIEdgeInsets(top: 700, left: 0, bottom: 400, right: 0)))
+        physicsBody?.categoryBitMask = PhysicsCategory.boundary
         
         if let musicURL = Bundle.main.url(forResource: "music", withExtension: "m4a") {
             backgroundMusic = SKAudioNode(url: musicURL)
@@ -250,54 +603,90 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     
     override func update(_ currentTime: TimeInterval) {
-    // Called before each frame is rendered
-        guard player != nil else { return }
-        physicsBody = SKPhysicsBody(edgeLoopFrom: frame.inset(by: UIEdgeInsets(top: 700, left: 0, bottom: 400, right: 0)))
-        if let accelerometerData = motionManager.accelerometerData {
-            physicsWorld.gravity = CGVector(dx: accelerometerData.acceleration.x * tiltSensitivity, dy: accelerometerData.acceleration.y * tiltSensitivity)
+        let deltaTime = lastUpdateTime > 0 ? min(currentTime - lastUpdateTime, 1.0 / 30.0) : 0
+        lastUpdateTime = currentTime
+
+        guard gameState == .playing && !isPaused else { return }
+
+        updatePowerUps(deltaTime: deltaTime)
+
+        distanceThisRun += deltaTime * metersPerSecond * Double(speed)
+        let liveCoins = coinsEarned(newBest: false)
+        if liveCoins != lastCoinDisplay {
+            lastCoinDisplay = liveCoins
+            coinLabel.text = "🪙 \(liveCoins)"
         }
-        
+
+        let flutterActive = isFluttering && flutterMeter > 0
+        if flutterActive {
+            flutterHoldTime += deltaTime
+            let drainMultiplier = 1.0 + flutterHoldTime * flutterDrainRamp
+            flutterMeter = max(flutterMeter - flutterDrainPerSecond * drainMultiplier * deltaTime, 0)
+            // Gravity alone doesn't shed existing downward velocity; clamp it
+            // so flutter reads as an immediate parachute.
+            if let body = player.physicsBody, body.velocity.dy < flutterMaxFallSpeed {
+                body.velocity = CGVector(dx: body.velocity.dx, dy: flutterMaxFallSpeed)
+            }
+        } else {
+            flutterHoldTime = 0
+        }
+        // The sensation of falling is the world scrolling — flutter slows it,
+        // and each zone cleared speeds it up.
+        speed = flutterActive ? baseWorldSpeed * flutterWorldSpeed : baseWorldSpeed
+        // Scene speed scales child action speed too; divide it back out so the
+        // flap animation genuinely doubles while fluttering.
+        player.speed = flutterActive ? 2.0 / flutterWorldSpeed : 1.0
+
+        flutterBarFill.yScale = CGFloat(min(flutterMeter / flutterCapacity, 1))
+        flutterBarFill.color = flutterMeter / flutterCapacity > 0.25 ? UIColor.cyan : UIColor.red
+        // Reserve maxes out at +1.0 gauge, so its fraction maps directly.
+        flutterBarOverfill.yScale = CGFloat(max(0, min(flutterMeter - flutterCapacity, 1.0)))
+
+        if let accelerometerData = motionManager.accelerometerData {
+            physicsWorld.gravity = CGVector(dx: accelerometerData.acceleration.x * tiltSensitivity, dy: flutterActive ? flutterGravity : fallGravity)
+        }
     }
     
     func didBegin(_ contact: SKPhysicsContact) {
-        if contact.bodyA.node?.name == "detectScore" || contact.bodyB.node?.name == "detectScore" {
-            if contact.bodyA.node == player {
-                contact.bodyB.node?.removeFromParent()
-            } else {
-                contact.bodyA.node?.removeFromParent()
-            }
-            let successSound = SKAction.playSoundFileNamed("success.mp3", waitForCompletion: false)
-            run(successSound)
-            score += 1
-            
-          
-            if score <= 20 {
-                tiltSensitivity += 1.75
-            } else if score > 20 && score < 40 {
-                tiltSensitivity = Double.random(in: 20...65)
-            } else {
-                tiltSensitivity = Double.random(in: 5...100)
+        let collision = contact.bodyA.categoryBitMask | contact.bodyB.categoryBitMask
+
+        // The player's texture body is decomposed into multiple shapes, so one
+        // crossing can fire didBegin several times. Requiring the node to still
+        // be in the scene dedupes: the first contact removes it.
+        if collision == PhysicsCategory.player | PhysicsCategory.powerUp {
+            let node = contact.bodyA.categoryBitMask == PhysicsCategory.powerUp ? contact.bodyA.node : contact.bodyB.node
+            if let powerUp = node as? PowerUpNode, powerUp.parent != nil {
+                collectPowerUp(powerUp)
             }
             return
         }
-        guard contact.bodyA.node != nil && contact.bodyB.node != nil else {
-                return
+
+        if collision == PhysicsCategory.player | PhysicsCategory.feather {
+            let feather = contact.bodyA.categoryBitMask == PhysicsCategory.feather ? contact.bodyA.node : contact.bodyB.node
+            if let feather, feather.parent != nil {
+                collectFeather(feather)
             }
-        
-        if contact.bodyA.node?.name == "rightWall" || contact.bodyB.node?.name == "rightWall" {
-            gameOver()
+            return
         }
-        
-        if contact.bodyA.node?.name == "leftWall" || contact.bodyB.node?.name == "leftWall" {
-            gameOver()
+
+        if collision == PhysicsCategory.player | PhysicsCategory.scoreGate {
+            let gate = contact.bodyA.categoryBitMask == PhysicsCategory.scoreGate ? contact.bodyA.node : contact.bodyB.node
+            guard let gate, gate.parent != nil else { return }
+            gate.removeFromParent()
+
+            let successSound = SKAction.playSoundFileNamed("success.mp3", waitForCompletion: false)
+            run(successSound)
+            gatesThisRun += 1
+            checkNearMiss()
+            score += powerUps.multiplierTime > 0 ? 3 : 1
+
+            tiltSensitivity = min(tiltSensitivity + 1.75, maxTiltSensitivity)
+            advanceWorldIfNeeded()
+            return
         }
-        
-        if contact.bodyA.node?.name == "leftRock" || contact.bodyB.node?.name == "leftRock" {
+
+        if collision & (PhysicsCategory.wall | PhysicsCategory.rock) != 0 {
             gameOver()
-        }
-        
-        if contact.bodyA.node?.name == "rightRock" || contact.bodyB.node?.name == "rightRock" {
-          gameOver()
         }
     }
     
@@ -305,39 +694,38 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
   
     
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        
         switch gameState {
         case .showingMenu:
-            gameState = .playing
-            
-            let fadeOut = SKAction.fadeOut(withDuration: 0.5)
-                   let remove = SKAction.removeFromParent()
-                   let wait = SKAction.wait(forDuration: 0.5)
-                   let activatePlayer = SKAction.run { [unowned self] in
-                       tiltSensitivity = 5.0
-                       scoreLabel.alpha = 1
-                       playLabel.alpha = 0
-                       self.startRocks()
-                   }
-            
-            let sequence = SKAction.sequence([fadeOut, wait, activatePlayer, remove])
-                  title.run(sequence)
-        case .playing:
-            // power up stuff here
-            //        player.physicsBody?.velocity = CGVector(dx: 0, dy: 0)
-            //        player.physicsBody?.applyImpulse(CGVector(dx: 0, dy: 20))
-
+            // Run start is driven by the SwiftUI home screen via startRun().
             break
-        case .dead:
-            if let scene = GameScene(fileNamed: "GameScene") {
-                scene.scaleMode = .aspectFill
-                let transition = SKTransition.moveIn(with: SKTransitionDirection.down, duration: 1)
-                view?.presentScene(scene, transition: transition)
+        case .playing:
+            if isPaused {
+                isPaused = false
+                pausedLabel.isHidden = true
+                return
             }
+            if let touch = touches.first,
+               nodes(at: touch.location(in: self)).contains(where: { $0.name == "pauseButton" }) {
+                isPaused = true
+                isFluttering = false
+                pausedLabel.isHidden = false
+                return
+            }
+            isFluttering = true
+            if flutterMeter > 0 {
+                flutterUsesThisRun += 1
+            }
+        case .dead:
+            // Retry/home are driven by the SwiftUI game-over card.
+            break
         }
     }
     
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+        isFluttering = false
+    }
 
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+        isFluttering = false
     }
 }
