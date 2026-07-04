@@ -502,6 +502,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         )
         DailyChallengeStore.shared.recordRun(stats)
         LifetimeStats.record(stats)
+        GameCenterManager.shared.submit(score: score)
     }
 
     // Paid/ad revive from the game-over card: resumes the same run.

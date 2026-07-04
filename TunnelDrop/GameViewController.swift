@@ -37,6 +37,12 @@ class GameViewController: UIViewController {
             self?.goHome()
         }
         flow.onRevive = { [weak self] in self?.revive() }
+        flow.onRanks = { [weak self] in
+            guard let self else { return }
+            GameCenterManager.shared.showLeaderboard(from: self)
+        }
+
+        GameCenterManager.shared.authenticate(presenting: self)
 
         hostingController = UIHostingController(rootView: RootOverlayView(flow: flow))
         hostingController.view.backgroundColor = .clear

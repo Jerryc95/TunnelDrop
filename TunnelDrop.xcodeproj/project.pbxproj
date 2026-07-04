@@ -27,6 +27,7 @@
 		FBFEA7012C0FFEE00000000E /* Shop.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBFEA7012C0FFEE00000000D /* Shop.swift */; };
 		FBFEA7012C0FFEE000000011 /* Challenges.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBFEA7012C0FFEE000000010 /* Challenges.swift */; };
 		FBFEA7012C0FFEE000000013 /* Stats.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBFEA7012C0FFEE000000012 /* Stats.swift */; };
+		FBFEA7012C0FFEE000000015 /* GameCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBFEA7012C0FFEE000000014 /* GameCenter.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -52,6 +53,8 @@
 		FBFEA7012C0FFEE00000000F /* Products.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = Products.storekit; sourceTree = "<group>"; };
 		FBFEA7012C0FFEE000000010 /* Challenges.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Challenges.swift; sourceTree = "<group>"; };
 		FBFEA7012C0FFEE000000012 /* Stats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stats.swift; sourceTree = "<group>"; };
+		FBFEA7012C0FFEE000000014 /* GameCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameCenter.swift; sourceTree = "<group>"; };
+		FBFEA7012C0FFEE000000016 /* TunnelDrop.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TunnelDrop.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -97,6 +100,8 @@
 				FBFEA7012C0FFEE00000000F /* Products.storekit */,
 				FBFEA7012C0FFEE000000010 /* Challenges.swift */,
 				FBFEA7012C0FFEE000000012 /* Stats.swift */,
+				FBFEA7012C0FFEE000000014 /* GameCenter.swift */,
+				FBFEA7012C0FFEE000000016 /* TunnelDrop.entitlements */,
 				FB7DB0932B6EB70300A5DFF1 /* GameViewController.swift */,
 				FB7DB0952B6EB70300A5DFF1 /* Main.storyboard */,
 				FB7DB0982B6EB70400A5DFF1 /* Assets.xcassets */,
@@ -195,6 +200,7 @@
 				FBFEA7012C0FFEE00000000E /* Shop.swift in Sources */,
 				FBFEA7012C0FFEE000000011 /* Challenges.swift in Sources */,
 				FBFEA7012C0FFEE000000013 /* Stats.swift in Sources */,
+				FBFEA7012C0FFEE000000015 /* GameCenter.swift in Sources */,
 				FB7DB0942B6EB70300A5DFF1 /* GameViewController.swift in Sources */,
 				FB7DB08C2B6EB70300A5DFF1 /* AppDelegate.swift in Sources */,
 			);
@@ -350,6 +356,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = TunnelDrop/TunnelDrop.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -379,6 +386,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = TunnelDrop/TunnelDrop.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;

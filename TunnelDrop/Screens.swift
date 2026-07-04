@@ -69,6 +69,7 @@ final class GameFlow: ObservableObject {
     var onRetry: (() -> Void)?
     var onHome: (() -> Void)?
     var onRevive: (() -> Void)?
+    var onRanks: (() -> Void)?
 }
 
 struct RootOverlayView: View {
@@ -168,7 +169,7 @@ struct HomeView: View {
 
             HStack(spacing: 10) {
                 navButton("SHOP", emoji: "🏪") { sheet = .shop }
-                navButton("RANKS", emoji: "🏆") { sheet = .ranks }
+                navButton("RANKS", emoji: "🏆") { flow.onRanks?() }
                 navButton("DAILY", emoji: "🔥") { sheet = .daily }
                 navButton("MORE", emoji: "⚙️") { sheet = .more }
             }
