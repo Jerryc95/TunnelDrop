@@ -60,7 +60,9 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
     var powerUps = PowerUpState()
     var powerUpLabel: SKLabelNode!
-    var magnetRadius: CGFloat = 300
+    var magnetRadius: CGFloat = 160
+    var magnetPull = 4.0
+    var ghostDuration = 5.0
 
     var patternQueue: [CGFloat] = []
 
@@ -559,6 +561,11 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         flutterCapacity = 1.0 + 0.1 * Double(UserDefaults.standard.integer(forKey: "flutterLevel"))
         overfillOwned = UserDefaults.standard.bool(forKey: "overfillOwned")
         flutterMeter = flutterCapacity
+
+        let magnetLevel = UserDefaults.standard.integer(forKey: "magnetLevel")
+        magnetRadius = 160 + CGFloat(magnetLevel) * 50
+        magnetPull = 4.0 + Double(magnetLevel)
+        ghostDuration = 5.0 + Double(UserDefaults.standard.integer(forKey: "ghostLevel"))
 
         createPlayer()
         createDirt()

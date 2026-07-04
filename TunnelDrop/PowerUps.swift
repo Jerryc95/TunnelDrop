@@ -27,7 +27,7 @@ enum PowerUpType: CaseIterable {
         switch self {
         case .magnet: return 8
         case .multiplier: return 10
-        case .ghost: return 6
+        case .ghost: return 5 // base; upgrades extend via GameScene.ghostDuration
         case .extraLife: return 0
         }
     }
@@ -96,7 +96,7 @@ extension GameScene {
         case .multiplier:
             powerUps.multiplierTime = powerUp.type.duration
         case .ghost:
-            powerUps.ghostTime = powerUp.type.duration
+            powerUps.ghostTime = ghostDuration
             ghostUsesThisRun += 1
         case .extraLife:
             powerUps.lives = min(powerUps.lives + 1, 3)
@@ -123,7 +123,7 @@ extension GameScene {
 
         if powerUps.magnetTime > 0 {
             let playerPosition = player.position
-            let pull = min(1.0, deltaTime * 6)
+            let pull = min(1.0, deltaTime * magnetPull)
             enumerateChildNodes(withName: "feather") { [magnetRadius] node, _ in
                 let dx = playerPosition.x - node.position.x
                 let dy = playerPosition.y - node.position.y

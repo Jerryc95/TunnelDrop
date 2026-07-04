@@ -15,6 +15,8 @@ enum Theme {
     static let pillEdge = Color(red: 0.05, green: 0.035, blue: 0.025)
     static let orange = Color(red: 0.96, green: 0.57, blue: 0.24)
     static let orangeEdge = Color(red: 0.70, green: 0.37, blue: 0.12)
+    static let red = Color(red: 0.85, green: 0.27, blue: 0.22)
+    static let redEdge = Color(red: 0.58, green: 0.15, blue: 0.12)
     static let gold = Color(red: 0.94, green: 0.71, blue: 0.16)
     static let green = Color(red: 0.30, green: 0.79, blue: 0.39)
     static let greenEdge = Color(red: 0.16, green: 0.52, blue: 0.24)
@@ -181,6 +183,8 @@ struct HomeView: View {
                 ShopView()
             case .daily:
                 DailyView()
+            case .more:
+                MoreView()
             default:
                 ComingSoonView(title: kind.rawValue)
             }
@@ -306,6 +310,51 @@ struct GameOverView: View {
             RoundedRectangle(cornerRadius: 16)
                 .stroke(highlight ? Theme.gold.opacity(0.6) : .clear, lineWidth: 1.5)
         )
+    }
+}
+
+// MARK: - More
+
+struct MoreView: View {
+    @State private var confirmingReset = false
+
+    var body: some View {
+        VStack(spacing: 24) {
+            Text("More")
+                .font(.system(size: 34, weight: .black, design: .rounded))
+                .foregroundStyle(.white)
+
+            Spacer()
+
+            Button {
+                confirmingReset = true
+            } label: {
+                Label("RESET ALL PROGRESS", systemImage: "trash.fill")
+                    .font(.system(size: 17, weight: .black, design: .rounded))
+            }
+            .buttonStyle(ChunkyButtonStyle(color: Theme.red, edge: Theme.redEdge, cornerRadius: 16, verticalPadding: 14))
+
+            Text("Testing only — wipes coins, upgrades, skins, achievements, streaks, and best score.")
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+
+            Spacer()
+        }
+        .padding(24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Theme.background.ignoresSafeArea())
+        .alert("Reset all progress?", isPresented: $confirmingReset) {
+            Button("Reset", role: .destructive) {
+                if let bundleID = Bundle.main.bundleIdentifier {
+                    UserDefaults.standard.removePersistentDomain(forName: bundleID)
+                }
+                DailyChallengeStore.shared.refreshForToday()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This cannot be undone.")
+        }
     }
 }
 

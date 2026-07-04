@@ -107,12 +107,17 @@ struct ShopView: View {
     @AppStorage("flutterLevel") private var flutterLevel = 0
     @AppStorage("overfillOwned") private var overfillOwned = false
     @AppStorage("reviveStock") private var reviveStock = 0
+    @AppStorage("magnetLevel") private var magnetLevel = 0
+    @AppStorage("ghostLevel") private var ghostLevel = 0
 
     static let maxFlutterLevel = 10
     static let overfillPrice = 250
     static let revivePackPrice = 100
+    static let maxPowerUpLevel = 5
 
     private var flutterUpgradePrice: Int { 100 + flutterLevel * 50 }
+    private var magnetUpgradePrice: Int { 1000 + magnetLevel * 250 }
+    private var ghostUpgradePrice: Int { 1000 + ghostLevel * 250 }
 
     private var ownedSkins: Set<String> {
         Set(ownedSkinsRaw.split(separator: ",").map(String.init))
@@ -187,6 +192,30 @@ struct ShopView: View {
                     ) {
                         coinBalance -= Self.revivePackPrice
                         reviveStock += 1
+                    }
+                    upgradeRow(
+                        emoji: "🧲",
+                        title: "Magnet Strength",
+                        subtitle: magnetLevel >= Self.maxPowerUpLevel
+                            ? "Maxed out — level \(magnetLevel)/\(Self.maxPowerUpLevel)"
+                            : "Level \(magnetLevel)/\(Self.maxPowerUpLevel) — wider, faster pull",
+                        buttonText: magnetLevel >= Self.maxPowerUpLevel ? nil : "🪙 \(magnetUpgradePrice)",
+                        enabled: coinBalance >= magnetUpgradePrice
+                    ) {
+                        coinBalance -= magnetUpgradePrice
+                        magnetLevel += 1
+                    }
+                    upgradeRow(
+                        emoji: "👻",
+                        title: "Ghost Duration",
+                        subtitle: ghostLevel >= Self.maxPowerUpLevel
+                            ? "Maxed out — \(5 + ghostLevel)s"
+                            : "\(5 + ghostLevel)s → \(6 + ghostLevel)s per pickup",
+                        buttonText: ghostLevel >= Self.maxPowerUpLevel ? nil : "🪙 \(ghostUpgradePrice)",
+                        enabled: coinBalance >= ghostUpgradePrice
+                    ) {
+                        coinBalance -= ghostUpgradePrice
+                        ghostLevel += 1
                     }
                 }
 
