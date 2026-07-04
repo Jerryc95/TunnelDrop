@@ -13,6 +13,7 @@ class GameViewController: UIViewController {
 
     private let flow = GameFlow()
     private var hostingController: UIHostingController<RootOverlayView>!
+    private var currentScene: GameScene?
 
     private var skView: SKView { view as! SKView }
 
@@ -27,8 +28,15 @@ class GameViewController: UIViewController {
         presentScene()
 
         flow.onPlay = { [weak self] in self?.startRun() }
-        flow.onRetry = { [weak self] in self?.startRun() }
-        flow.onHome = { [weak self] in self?.goHome() }
+        flow.onRetry = { [weak self] in
+            self?.currentScene?.finalizeRun()
+            self?.startRun()
+        }
+        flow.onHome = { [weak self] in
+            self?.currentScene?.finalizeRun()
+            self?.goHome()
+        }
+        flow.onRevive = { [weak self] in self?.revive() }
 
         hostingController = UIHostingController(rootView: RootOverlayView(flow: flow))
         hostingController.view.backgroundColor = .clear
@@ -50,7 +58,24 @@ class GameViewController: UIViewController {
             self.hostingController.view.isUserInteractionEnabled = true
         }
         skView.presentScene(scene)
+        currentScene = scene
         return scene
+    }
+
+    private func revive() {
+        guard let scene = currentScene else { return }
+        let defaults = UserDefaults.standard
+        let stock = defaults.integer(forKey: "reviveStock")
+        if stock > 0 {
+            defaults.set(stock - 1, forKey: "reviveStock")
+        } else {
+            let balance = defaults.integer(forKey: "coinBalance")
+            guard balance >= GameFlow.revivePrice else { return }
+            defaults.set(balance - GameFlow.revivePrice, forKey: "coinBalance")
+        }
+        flow.screen = .playing
+        hostingController.view.isUserInteractionEnabled = false
+        scene.reviveFromGameOver()
     }
 
     private func startRun() {

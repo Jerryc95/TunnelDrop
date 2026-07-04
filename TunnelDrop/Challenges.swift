@@ -168,9 +168,9 @@ final class DailyChallengeStore: ObservableObject {
                 let target = targets[next(targets.count)]
                 return DailyChallenge(kind: kind, target: target, reward: target)
             case .earnCoins:
-                let targets = [5, 10, 15]
+                let targets = [20, 40, 60]
                 let target = targets[next(targets.count)]
-                return DailyChallenge(kind: kind, target: target, reward: target * 8)
+                return DailyChallenge(kind: kind, target: target, reward: target * 2)
             case .useFlutter:
                 let targets = [10, 20, 30]
                 let target = targets[next(targets.count)]

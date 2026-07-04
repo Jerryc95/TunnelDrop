@@ -60,10 +60,13 @@ final class GameFlow: ObservableObject {
 
     @Published var screen = Screen.home
 
+    static let revivePrice = 100
+
     // Wired up by GameViewController.
     var onPlay: (() -> Void)?
     var onRetry: (() -> Void)?
     var onHome: (() -> Void)?
+    var onRevive: (() -> Void)?
 }
 
 struct RootOverlayView: View {
@@ -205,6 +208,12 @@ struct HomeView: View {
 struct GameOverView: View {
     let result: GameResult
     @ObservedObject var flow: GameFlow
+    @AppStorage("coinBalance") private var coinBalance = 0
+    @AppStorage("reviveStock") private var reviveStock = 0
+
+    private var canRevive: Bool {
+        reviveStock > 0 || coinBalance >= GameFlow.revivePrice
+    }
 
     var body: some View {
         ZStack {
@@ -235,13 +244,25 @@ struct GameOverView: View {
                 }
 
                 Button {
+                    flow.onRevive?()
+                } label: {
+                    Label(
+                        reviveStock > 0 ? "REVIVE  (\(reviveStock) LEFT)" : "REVIVE  —  🪙 \(GameFlow.revivePrice)",
+                        systemImage: "heart.fill"
+                    )
+                    .font(.system(size: 20, weight: .black, design: .rounded))
+                }
+                .buttonStyle(ChunkyButtonStyle(color: Theme.green, edge: Theme.greenEdge, cornerRadius: 18, verticalPadding: 16))
+                .disabled(!canRevive)
+                .padding(.top, 10)
+
+                Button {
                     flow.onRetry?()
                 } label: {
                     Label("RETRY", systemImage: "arrow.counterclockwise")
                         .font(.system(size: 22, weight: .black, design: .rounded))
                 }
                 .buttonStyle(ChunkyButtonStyle(color: Theme.orange, edge: Theme.orangeEdge, cornerRadius: 18, verticalPadding: 16))
-                .padding(.top, 10)
 
                 Button {
                     flow.onHome?()
@@ -257,6 +278,10 @@ struct GameOverView: View {
                         .foregroundStyle(.secondary)
                 }
                 .padding(.top, 6)
+
+                Text("Free ad revive coming soon")
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary.opacity(0.7))
             }
             .padding(24)
             .background(Theme.card, in: RoundedRectangle(cornerRadius: 28))

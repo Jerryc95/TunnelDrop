@@ -53,6 +53,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     var flutterGravity = -0.1
     var flutterDrainPerSecond = 0.18
     var featherRefillAmount = 0.2
+    var flutterCapacity = 1.0
+    var overfillOwned = false
 
     var powerUps = PowerUpState()
     var powerUpLabel: SKLabelNode!
@@ -67,7 +69,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
     var coinLabel: SKLabelNode!
     var coinsThisRun = 0
-    var scorePerCoin = 20
+    var scorePerCoin = 5
     var flutterUsesThisRun = 0
     var gatesThisRun = 0
     var coinBalance = UserDefaults.standard.integer(forKey: "coinBalance") {
@@ -113,6 +115,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     var dead: SKSpriteNode!
     
     var gameState = GameState.showingMenu
+    var runCommitted = false
 
     var onGameOver: ((GameResult) -> Void)?
     
@@ -353,7 +356,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     func refillFlutter(_ amount: Double) {
-        flutterMeter = min(flutterMeter + amount, 1.0)
+        let cap = flutterCapacity * (overfillOwned ? 1.5 : 1.0)
+        flutterMeter = min(flutterMeter + amount, cap)
     }
     
     // Called by GameViewController when the SwiftUI home screen's PLAY
@@ -397,7 +401,19 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         pauseButton.alpha = 0
         comboBadge.isHidden = true
 
-        let previousBest = highScore
+        // Rewards are NOT banked here — a revive would double-count them.
+        // finalizeRun() commits when the player leaves the game-over card.
+        coinsThisRun = score / scorePerCoin
+        let result = GameResult(score: score, coinsEarned: coinsThisRun, previousBest: highScore, isNewBest: score > highScore)
+        // Scene speed is 0, so SKAction-based delays never fire; use GCD.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { [weak self] in
+            self?.onGameOver?(result)
+        }
+    }
+
+    func finalizeRun() {
+        guard gameState == .dead, !runCommitted else { return }
+        runCommitted = true
         if score > highScore {
             highScore = score
             UserDefaults.standard.set(highScore, forKey: "highScore")
@@ -405,12 +421,23 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         coinsThisRun = score / scorePerCoin
         coinBalance += coinsThisRun
         DailyChallengeStore.shared.recordRun(score: score, coins: coinsThisRun, flutterUses: flutterUsesThisRun, gates: gatesThisRun)
+    }
 
-        let result = GameResult(score: score, coinsEarned: coinsThisRun, previousBest: previousBest, isNewBest: score > previousBest)
-        // Scene speed is 0, so SKAction-based delays never fire; use GCD.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { [weak self] in
-            self?.onGameOver?(result)
-        }
+    // Paid/ad revive from the game-over card: resumes the same run.
+    func reviveFromGameOver() {
+        guard gameState == .dead, !runCommitted else { return }
+        gameState = .playing
+        speed = 1
+
+        player.position = CGPoint(x: frame.width / 2, y: frame.height * 0.68)
+        player.physicsBody?.velocity = .zero
+        addChild(player)
+
+        powerUps.reviveTime = 2.5
+        refreshPlayerPhysics()
+        motionManager.startAccelerometerUpdates()
+        backgroundMusic.run(SKAction.play())
+        pauseButton.alpha = 1
     }
     
     func createScreens() {
@@ -456,6 +483,10 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     override func didMove(to view: SKView) {
+        flutterCapacity = 1.0 + 0.1 * Double(UserDefaults.standard.integer(forKey: "flutterLevel"))
+        overfillOwned = UserDefaults.standard.bool(forKey: "overfillOwned")
+        flutterMeter = flutterCapacity
+
         createPlayer()
         createDirt()
         createWalls()
@@ -497,8 +528,12 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             flutterMeter = max(flutterMeter - flutterDrainPerSecond * deltaTime, 0)
         }
         player.speed = flutterActive ? 2.0 : 1.0
-        flutterBarFill.yScale = CGFloat(flutterMeter)
-        flutterBarFill.color = flutterMeter > 0.25 ? UIColor.cyan : UIColor.red
+        flutterBarFill.yScale = CGFloat(min(flutterMeter / flutterCapacity, 1))
+        if flutterMeter > flutterCapacity {
+            flutterBarFill.color = UIColor.systemYellow
+        } else {
+            flutterBarFill.color = flutterMeter / flutterCapacity > 0.25 ? UIColor.cyan : UIColor.red
+        }
 
         if let accelerometerData = motionManager.accelerometerData {
             physicsWorld.gravity = CGVector(dx: accelerometerData.acceleration.x * tiltSensitivity, dy: flutterActive ? flutterGravity : fallGravity)

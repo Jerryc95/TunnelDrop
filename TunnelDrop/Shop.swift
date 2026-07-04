@@ -104,6 +104,15 @@ struct ShopView: View {
     @AppStorage("ownedSkins") private var ownedSkinsRaw = "classic"
     @AppStorage("equippedSkin") private var equippedSkin = "classic"
     @AppStorage("removeAds") private var removeAds = false
+    @AppStorage("flutterLevel") private var flutterLevel = 0
+    @AppStorage("overfillOwned") private var overfillOwned = false
+    @AppStorage("reviveStock") private var reviveStock = 0
+
+    static let maxFlutterLevel = 10
+    static let overfillPrice = 250
+    static let revivePackPrice = 100
+
+    private var flutterUpgradePrice: Int { 100 + flutterLevel * 50 }
 
     private var ownedSkins: Set<String> {
         Set(ownedSkinsRaw.split(separator: ",").map(String.init))
@@ -142,6 +151,42 @@ struct ShopView: View {
                 HStack(spacing: 10) {
                     ForEach(Skin.all) { skin in
                         skinTile(skin)
+                    }
+                }
+
+                sectionHeader("UPGRADES")
+                VStack(spacing: 10) {
+                    upgradeRow(
+                        emoji: "⚡️",
+                        title: "Flutter Capacity",
+                        subtitle: flutterLevel >= Self.maxFlutterLevel
+                            ? "Maxed out at \(100 + flutterLevel * 10)%"
+                            : "Gauge: \(100 + flutterLevel * 10)% → \(110 + flutterLevel * 10)%",
+                        buttonText: flutterLevel >= Self.maxFlutterLevel ? nil : "🪙 \(flutterUpgradePrice)",
+                        enabled: coinBalance >= flutterUpgradePrice
+                    ) {
+                        coinBalance -= flutterUpgradePrice
+                        flutterLevel += 1
+                    }
+                    upgradeRow(
+                        emoji: "💧",
+                        title: "Overfill",
+                        subtitle: "Feathers can fill the gauge to 150%",
+                        buttonText: overfillOwned ? nil : "🪙 \(Self.overfillPrice)",
+                        enabled: coinBalance >= Self.overfillPrice
+                    ) {
+                        coinBalance -= Self.overfillPrice
+                        overfillOwned = true
+                    }
+                    upgradeRow(
+                        emoji: "❤️",
+                        title: "Revive",
+                        subtitle: "Owned: \(reviveStock) — continue a run after crashing",
+                        buttonText: "🪙 \(Self.revivePackPrice)",
+                        enabled: coinBalance >= Self.revivePackPrice
+                    ) {
+                        coinBalance -= Self.revivePackPrice
+                        reviveStock += 1
                     }
                 }
 
@@ -271,6 +316,41 @@ struct ShopView: View {
             RoundedRectangle(cornerRadius: 18)
                 .stroke(isEquipped ? Theme.orange : .clear, lineWidth: 2)
         )
+    }
+
+    private func upgradeRow(emoji: String, title: String, subtitle: String, buttonText: String?, enabled: Bool, action: @escaping () -> Void) -> some View {
+        HStack(spacing: 14) {
+            Text(emoji)
+                .font(.system(size: 24))
+                .frame(width: 52, height: 52)
+                .background(Theme.pill, in: RoundedRectangle(cornerRadius: 14))
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.system(size: 16, weight: .heavy, design: .rounded))
+                    .foregroundStyle(.white)
+                Text(subtitle)
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            if let buttonText {
+                Button(action: action) {
+                    Text(buttonText)
+                        .font(.system(size: 13, weight: .black, design: .rounded))
+                }
+                .buttonStyle(ChunkyButtonStyle(color: Theme.orange, edge: Theme.orangeEdge, cornerRadius: 12, verticalPadding: 9, fullWidth: false))
+                .disabled(!enabled)
+            } else {
+                Image(systemName: "checkmark.seal.fill")
+                    .font(.system(size: 24))
+                    .foregroundStyle(Theme.green)
+            }
+        }
+        .padding(12)
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: 18))
     }
 
     private var removeAdsBanner: some View {
