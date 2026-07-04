@@ -68,6 +68,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     var coinLabel: SKLabelNode!
     var coinsThisRun = 0
     var scorePerCoin = 20
+    var flutterUsesThisRun = 0
+    var gatesThisRun = 0
     var coinBalance = UserDefaults.standard.integer(forKey: "coinBalance") {
         didSet {
             UserDefaults.standard.set(coinBalance, forKey: "coinBalance")
@@ -400,6 +402,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         }
         coinsThisRun = score / scorePerCoin
         coinBalance += coinsThisRun
+        DailyChallengeStore.shared.recordRun(score: score, coins: coinsThisRun, flutterUses: flutterUsesThisRun, gates: gatesThisRun)
 
         let result = GameResult(score: score, coinsEarned: coinsThisRun, previousBest: previousBest, isNewBest: score > previousBest)
         // Scene speed is 0, so SKAction-based delays never fire; use GCD.
@@ -525,6 +528,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
             let successSound = SKAction.playSoundFileNamed("success.mp3", waitForCompletion: false)
             run(successSound)
+            gatesThisRun += 1
             score += powerUps.multiplierTime > 0 ? 3 : 1
 
             tiltSensitivity = min(tiltSensitivity + 1.75, maxTiltSensitivity)
@@ -559,6 +563,9 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
                 return
             }
             isFluttering = true
+            if flutterMeter > 0 {
+                flutterUsesThisRun += 1
+            }
         case .dead:
             // Retry/home are driven by the SwiftUI game-over card.
             break

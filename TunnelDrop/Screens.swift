@@ -142,9 +142,12 @@ struct HomeView: View {
         .padding(.bottom, 10)
         .background(Theme.background.ignoresSafeArea())
         .sheet(item: $sheet) { kind in
-            if kind == .shop {
+            switch kind {
+            case .shop:
                 ShopView()
-            } else {
+            case .daily:
+                DailyView()
+            default:
                 ComingSoonView(title: kind.rawValue)
             }
         }
