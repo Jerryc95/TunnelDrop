@@ -55,6 +55,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     var featherRefillAmount = 0.2
     var flutterCapacity = 1.0
     var overfillOwned = false
+    var flutterMaxFallSpeed: CGFloat = -80
+    var flutterWorldSpeed: CGFloat = 0.55
 
     var powerUps = PowerUpState()
     var powerUpLabel: SKLabelNode!
@@ -359,11 +361,31 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         caption.fontColor = UIColor.cyan
         caption.position = CGPoint(x: 0, y: -barSize.height / 2 - 36)
         flutterBarBackground.addChild(caption)
+
+        // With overfill, the bar spans capacity + 100%; a tick marks where
+        // the normal cap sits.
+        if overfillOwned {
+            let marker = SKSpriteNode(color: UIColor(white: 1, alpha: 0.8), size: CGSize(width: barSize.width + 10, height: 2))
+            let capFraction = flutterCapacity / (flutterCapacity + 1.0)
+            marker.position = CGPoint(x: 0, y: -barSize.height / 2 + barSize.height * CGFloat(capFraction))
+            marker.zPosition = 2
+            flutterBarBackground.addChild(marker)
+        }
     }
 
     func refillFlutter(_ amount: Double) {
-        let cap = flutterCapacity * (overfillOwned ? 1.5 : 1.0)
-        flutterMeter = min(flutterMeter + amount, cap)
+        if !overfillOwned {
+            flutterMeter = min(flutterMeter + amount, flutterCapacity)
+            return
+        }
+        var remaining = amount
+        if flutterMeter < flutterCapacity {
+            let toNormal = min(remaining, flutterCapacity - flutterMeter)
+            flutterMeter += toNormal
+            remaining -= toNormal
+        }
+        // Above the cap, feathers credit at half rate, up to +100% extra gauge.
+        flutterMeter = min(flutterMeter + remaining * 0.5, flutterCapacity + 1.0)
     }
     
     // Called by GameViewController when the SwiftUI home screen's PLAY
@@ -574,7 +596,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
         updatePowerUps(deltaTime: deltaTime)
 
-        distanceThisRun += deltaTime * metersPerSecond
+        distanceThisRun += deltaTime * metersPerSecond * Double(speed)
         let liveCoins = coinsEarned(newBest: false)
         if liveCoins != lastCoinDisplay {
             lastCoinDisplay = liveCoins
@@ -584,9 +606,18 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         let flutterActive = isFluttering && flutterMeter > 0
         if flutterActive {
             flutterMeter = max(flutterMeter - flutterDrainPerSecond * deltaTime, 0)
+            // Gravity alone doesn't shed existing downward velocity; clamp it
+            // so flutter reads as an immediate parachute.
+            if let body = player.physicsBody, body.velocity.dy < flutterMaxFallSpeed {
+                body.velocity = CGVector(dx: body.velocity.dx, dy: flutterMaxFallSpeed)
+            }
         }
+        // The sensation of falling is the world scrolling — flutter slows it.
+        speed = flutterActive ? flutterWorldSpeed : 1.0
         player.speed = flutterActive ? 2.0 : 1.0
-        flutterBarFill.yScale = CGFloat(min(flutterMeter / flutterCapacity, 1))
+
+        let displayCap = overfillOwned ? flutterCapacity + 1.0 : flutterCapacity
+        flutterBarFill.yScale = CGFloat(min(flutterMeter / displayCap, 1))
         if flutterMeter > flutterCapacity {
             flutterBarFill.color = UIColor.systemYellow
         } else {

@@ -30,6 +30,14 @@ enum LifetimeStats {
         if stats.zoneReached > defaults.integer(forKey: "lifeMaxZone") {
             defaults.set(stats.zoneReached, forKey: "lifeMaxZone")
         }
+        if stats.flutterUses == 0 {
+            if stats.meters > defaults.double(forKey: "lifeNoFlutterMeters") {
+                defaults.set(stats.meters, forKey: "lifeNoFlutterMeters")
+            }
+            if stats.zoneReached > defaults.integer(forKey: "lifeNoFlutterZone") {
+                defaults.set(stats.zoneReached, forKey: "lifeNoFlutterZone")
+            }
+        }
     }
 }
 
@@ -76,6 +84,15 @@ struct Achievement: Identifiable {
             Achievement(id: "firstSkin", title: "Unlock first skin", emoji: "🐦", reward: 100, target: 1) {
                 let owned = defaults.string(forKey: "ownedSkins") ?? "classic"
                 return max(0, owned.split(separator: ",").filter { $0 != "classic" }.count)
+            },
+            Achievement(id: "noFlutter50m", title: "Fall 50m in one run without fluttering", emoji: "🚫", reward: 100, target: 50) {
+                Int(defaults.double(forKey: "lifeNoFlutterMeters"))
+            },
+            Achievement(id: "noFlutterZone2", title: "Reach zone 2 without fluttering", emoji: "🧘", reward: 150, target: 2) {
+                defaults.integer(forKey: "lifeNoFlutterZone")
+            },
+            Achievement(id: "noFlutterZone3", title: "Reach zone 3 without fluttering", emoji: "🥶", reward: 300, target: 3) {
+                defaults.integer(forKey: "lifeNoFlutterZone")
             },
         ]
     }()
