@@ -380,6 +380,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
     func gameOver() {
         guard gameState == .playing else { return }
+        // Contacts already queued this frame land after a revive; ignore them.
+        guard powerUps.reviveTime <= 0 else { return }
         if powerUps.lives > 0 {
             powerUps.lives -= 1
             revive()
@@ -506,9 +508,12 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     func didBegin(_ contact: SKPhysicsContact) {
         let collision = contact.bodyA.categoryBitMask | contact.bodyB.categoryBitMask
 
+        // The player's texture body is decomposed into multiple shapes, so one
+        // crossing can fire didBegin several times. Requiring the node to still
+        // be in the scene dedupes: the first contact removes it.
         if collision == PhysicsCategory.player | PhysicsCategory.powerUp {
             let node = contact.bodyA.categoryBitMask == PhysicsCategory.powerUp ? contact.bodyA.node : contact.bodyB.node
-            if let powerUp = node as? PowerUpNode {
+            if let powerUp = node as? PowerUpNode, powerUp.parent != nil {
                 collectPowerUp(powerUp)
             }
             return
@@ -516,7 +521,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
         if collision == PhysicsCategory.player | PhysicsCategory.feather {
             let feather = contact.bodyA.categoryBitMask == PhysicsCategory.feather ? contact.bodyA.node : contact.bodyB.node
-            if let feather {
+            if let feather, feather.parent != nil {
                 collectFeather(feather)
             }
             return
@@ -524,7 +529,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
         if collision == PhysicsCategory.player | PhysicsCategory.scoreGate {
             let gate = contact.bodyA.categoryBitMask == PhysicsCategory.scoreGate ? contact.bodyA.node : contact.bodyB.node
-            gate?.removeFromParent()
+            guard let gate, gate.parent != nil else { return }
+            gate.removeFromParent()
 
             let successSound = SKAction.playSoundFileNamed("success.mp3", waitForCompletion: false)
             run(successSound)
