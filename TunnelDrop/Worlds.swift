@@ -50,12 +50,14 @@ extension GameScene {
         }
     }
 
-    // Zones climb without bound; the world visuals cycle through the list.
+    // Zones climb without bound; the world visuals cycle through the list
+    // and each new zone scrolls faster.
     func advanceWorldIfNeeded() {
         let target = score / scorePerWorld
         guard target != zonesClearedThisRun else { return }
         zonesClearedThisRun = target
         worldIndex = (startWorldIndex + target) % World.all.count
         applyWorld(worldIndex, animated: true)
+        baseWorldSpeed = min(1.0 + worldSpeedPerZone * CGFloat(zonesClearedThisRun), maxWorldSpeed)
     }
 }

@@ -52,7 +52,10 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
     var flutterGravity = -0.1
     var flutterDrainPerSecond = 0.18
-    var featherRefillAmount = 0.2
+    // Continuous holding drains progressively faster; taps stay cheap.
+    var flutterDrainRamp = 0.35
+    var flutterHoldTime = 0.0
+    var featherRefillAmount = 0.12
     var flutterCapacity = 1.0
     var overfillOwned = false
     var flutterMaxFallSpeed: CGFloat = -80
@@ -69,7 +72,10 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     var dirtNode: SKSpriteNode!
     var worldIndex = 0
     var startWorldIndex = 0
-    var scorePerWorld = 25
+    var scorePerWorld = 50
+    var baseWorldSpeed: CGFloat = 1.0
+    var worldSpeedPerZone: CGFloat = 0.1
+    var maxWorldSpeed: CGFloat = 1.8
 
     var coinLabel: SKLabelNode!
     var coinsThisRun = 0
@@ -612,15 +618,20 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
         let flutterActive = isFluttering && flutterMeter > 0
         if flutterActive {
-            flutterMeter = max(flutterMeter - flutterDrainPerSecond * deltaTime, 0)
+            flutterHoldTime += deltaTime
+            let drainMultiplier = 1.0 + flutterHoldTime * flutterDrainRamp
+            flutterMeter = max(flutterMeter - flutterDrainPerSecond * drainMultiplier * deltaTime, 0)
             // Gravity alone doesn't shed existing downward velocity; clamp it
             // so flutter reads as an immediate parachute.
             if let body = player.physicsBody, body.velocity.dy < flutterMaxFallSpeed {
                 body.velocity = CGVector(dx: body.velocity.dx, dy: flutterMaxFallSpeed)
             }
+        } else {
+            flutterHoldTime = 0
         }
-        // The sensation of falling is the world scrolling — flutter slows it.
-        speed = flutterActive ? flutterWorldSpeed : 1.0
+        // The sensation of falling is the world scrolling — flutter slows it,
+        // and each zone cleared speeds it up.
+        speed = flutterActive ? baseWorldSpeed * flutterWorldSpeed : baseWorldSpeed
         // Scene speed scales child action speed too; divide it back out so the
         // flap animation genuinely doubles while fluttering.
         player.speed = flutterActive ? 2.0 / flutterWorldSpeed : 1.0
