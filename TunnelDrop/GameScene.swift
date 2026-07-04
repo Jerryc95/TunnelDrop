@@ -105,6 +105,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     var isFluttering = false
     var flutterBarBackground: SKSpriteNode!
     var flutterBarFill: SKSpriteNode!
+    var flutterBarOverfill: SKSpriteNode!
     var lastUpdateTime: TimeInterval = 0
 
     var player: SKSpriteNode!
@@ -348,6 +349,14 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         flutterBarFill.position = CGPoint(x: 0, y: -barSize.height / 2)
         flutterBarFill.zPosition = 1
         flutterBarBackground.addChild(flutterBarFill)
+
+        // Overfill reserve rises from the bottom over the cyan fill.
+        flutterBarOverfill = SKSpriteNode(color: UIColor.systemGreen, size: barSize)
+        flutterBarOverfill.anchorPoint = CGPoint(x: 0.5, y: 0)
+        flutterBarOverfill.position = CGPoint(x: 0, y: -barSize.height / 2)
+        flutterBarOverfill.zPosition = 2
+        flutterBarOverfill.yScale = 0
+        flutterBarBackground.addChild(flutterBarOverfill)
 
         let bolt = SKLabelNode(text: "⚡️")
         bolt.fontSize = 34
@@ -610,11 +619,9 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         player.speed = flutterActive ? 2.0 / flutterWorldSpeed : 1.0
 
         flutterBarFill.yScale = CGFloat(min(flutterMeter / flutterCapacity, 1))
-        if flutterMeter > flutterCapacity {
-            flutterBarFill.color = UIColor.systemGreen
-        } else {
-            flutterBarFill.color = flutterMeter / flutterCapacity > 0.25 ? UIColor.cyan : UIColor.red
-        }
+        flutterBarFill.color = flutterMeter / flutterCapacity > 0.25 ? UIColor.cyan : UIColor.red
+        // Reserve maxes out at +1.0 gauge, so its fraction maps directly.
+        flutterBarOverfill.yScale = CGFloat(max(0, min(flutterMeter - flutterCapacity, 1.0)))
 
         if let accelerometerData = motionManager.accelerometerData {
             physicsWorld.gravity = CGVector(dx: accelerometerData.acceleration.x * tiltSensitivity, dy: flutterActive ? flutterGravity : fallGravity)
