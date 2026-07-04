@@ -26,6 +26,7 @@
 		FBFEA7012C0FFEE00000000C /* Worlds.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBFEA7012C0FFEE00000000B /* Worlds.swift */; };
 		FBFEA7012C0FFEE00000000E /* Shop.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBFEA7012C0FFEE00000000D /* Shop.swift */; };
 		FBFEA7012C0FFEE000000011 /* Challenges.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBFEA7012C0FFEE000000010 /* Challenges.swift */; };
+		FBFEA7012C0FFEE000000013 /* Stats.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBFEA7012C0FFEE000000012 /* Stats.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -50,6 +51,7 @@
 		FBFEA7012C0FFEE00000000D /* Shop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shop.swift; sourceTree = "<group>"; };
 		FBFEA7012C0FFEE00000000F /* Products.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = Products.storekit; sourceTree = "<group>"; };
 		FBFEA7012C0FFEE000000010 /* Challenges.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Challenges.swift; sourceTree = "<group>"; };
+		FBFEA7012C0FFEE000000012 /* Stats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stats.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -94,6 +96,7 @@
 				FBFEA7012C0FFEE00000000D /* Shop.swift */,
 				FBFEA7012C0FFEE00000000F /* Products.storekit */,
 				FBFEA7012C0FFEE000000010 /* Challenges.swift */,
+				FBFEA7012C0FFEE000000012 /* Stats.swift */,
 				FB7DB0932B6EB70300A5DFF1 /* GameViewController.swift */,
 				FB7DB0952B6EB70300A5DFF1 /* Main.storyboard */,
 				FB7DB0982B6EB70400A5DFF1 /* Assets.xcassets */,
@@ -191,6 +194,7 @@
 				FBFEA7012C0FFEE00000000C /* Worlds.swift in Sources */,
 				FBFEA7012C0FFEE00000000E /* Shop.swift in Sources */,
 				FBFEA7012C0FFEE000000011 /* Challenges.swift in Sources */,
+				FBFEA7012C0FFEE000000013 /* Stats.swift in Sources */,
 				FB7DB0942B6EB70300A5DFF1 /* GameViewController.swift in Sources */,
 				FB7DB08C2B6EB70300A5DFF1 /* AppDelegate.swift in Sources */,
 			);

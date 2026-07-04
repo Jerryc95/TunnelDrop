@@ -12,10 +12,12 @@ import SwiftUI
 
 struct DailyChallenge: Codable, Identifiable {
     enum Kind: String, Codable, CaseIterable {
-        case scoreInOneRun
-        case earnCoins
-        case useFlutter
-        case passGates
+        case fallDistance
+        case feathersInOneRun
+        case ghostUses
+        case reachZone
+        case nearMisses
+        case playRuns
     }
 
     let kind: Kind
@@ -29,28 +31,34 @@ struct DailyChallenge: Codable, Identifiable {
 
     var title: String {
         switch kind {
-        case .scoreInOneRun: return "Score \(target) in one run"
-        case .earnCoins: return "Earn \(target) coins"
-        case .useFlutter: return "Use flutter \(target) times"
-        case .passGates: return "Pass \(target) spikes"
+        case .fallDistance: return "Fall \(target)m total today"
+        case .feathersInOneRun: return "Collect \(target) feathers in one run"
+        case .ghostUses: return "Use ghost power-up \(target) times"
+        case .reachZone: return "Reach zone \(target)"
+        case .nearMisses: return "Get \(target) near misses"
+        case .playRuns: return "Play \(target) runs"
         }
     }
 
     var emoji: String {
         switch kind {
-        case .scoreInOneRun: return "🚩"
-        case .earnCoins: return "🪙"
-        case .useFlutter: return "⚡️"
-        case .passGates: return "🪨"
+        case .fallDistance: return "⬇️"
+        case .feathersInOneRun: return "🪶"
+        case .ghostUses: return "👻"
+        case .reachZone: return "🗺️"
+        case .nearMisses: return "😬"
+        case .playRuns: return "🎮"
         }
     }
 
     var barColor: Color {
         switch kind {
-        case .scoreInOneRun: return .blue
-        case .earnCoins: return Theme.gold
-        case .useFlutter: return Theme.orange
-        case .passGates: return .purple
+        case .fallDistance: return .indigo
+        case .feathersInOneRun: return .cyan
+        case .ghostUses: return .purple
+        case .reachZone: return .mint
+        case .nearMisses: return Theme.gold
+        case .playRuns: return .blue
         }
     }
 }
@@ -62,7 +70,6 @@ final class DailyChallengeStore: ObservableObject {
     @Published private(set) var streak = 0
 
     static let streakLength = 7
-    static let streakBonus = 200
 
     private let defaults = UserDefaults.standard
 
@@ -94,22 +101,29 @@ final class DailyChallengeStore: ObservableObject {
         save()
     }
 
-    func recordRun(score: Int, coins: Int, flutterUses: Int, gates: Int) {
+    func recordRun(_ stats: RunStats) {
         refreshForToday()
         for index in challenges.indices where !challenges[index].claimed {
             switch challenges[index].kind {
-            case .scoreInOneRun:
-                challenges[index].progress = max(challenges[index].progress, score)
-            case .earnCoins:
-                challenges[index].progress += coins
-            case .useFlutter:
-                challenges[index].progress += flutterUses
-            case .passGates:
-                challenges[index].progress += gates
+            case .fallDistance:
+                challenges[index].progress += Int(stats.meters)
+            case .feathersInOneRun:
+                challenges[index].progress = max(challenges[index].progress, stats.feathers)
+            case .ghostUses:
+                challenges[index].progress += stats.ghostUses
+            case .reachZone:
+                challenges[index].progress = max(challenges[index].progress, stats.zoneReached)
+            case .nearMisses:
+                challenges[index].progress += stats.nearMisses
+            case .playRuns:
+                challenges[index].progress += 1
             }
         }
         save()
     }
+
+    // Coin reward per streak day (1-indexed); day 7 also grants a random skin.
+    static let streakRewards = [10, 20, 35, 50, 75, 100, 200]
 
     func claim(_ id: String) {
         guard let index = challenges.firstIndex(where: { $0.id == id }),
@@ -122,9 +136,10 @@ final class DailyChallengeStore: ObservableObject {
         let today = Self.dayString(Date())
         if defaults.string(forKey: "lastClaimDay") != today {
             defaults.set(today, forKey: "lastClaimDay")
-            streak += 1
+            streak = min(streak + 1, Self.streakLength)
+            payout += Self.streakRewards[streak - 1]
             if streak >= Self.streakLength {
-                payout += Self.streakBonus
+                grantRandomSkin()
                 streak = 0
             }
             defaults.set(streak, forKey: "dailyStreak")
@@ -132,6 +147,20 @@ final class DailyChallengeStore: ObservableObject {
 
         defaults.set(defaults.integer(forKey: "coinBalance") + payout, forKey: "coinBalance")
         save()
+    }
+
+    // Day-7 gift: an unowned skin, or 100 coins if all are owned.
+    private func grantRandomSkin() {
+        let ownedRaw = defaults.string(forKey: "ownedSkins") ?? "classic"
+        var owned = Set(ownedRaw.split(separator: ",").map(String.init))
+        owned.insert("classic")
+        let unowned = Skin.all.map(\.id).filter { !owned.contains($0) }
+        if let gift = unowned.randomElement() {
+            owned.insert(gift)
+            defaults.set(owned.sorted().joined(separator: ","), forKey: "ownedSkins")
+        } else {
+            defaults.set(defaults.integer(forKey: "coinBalance") + 100, forKey: "coinBalance")
+        }
     }
 
     private func save() {
@@ -163,22 +192,18 @@ final class DailyChallengeStore: ObservableObject {
 
         return picked.map { kind in
             switch kind {
-            case .scoreInOneRun:
-                let targets = [50, 75, 100, 150]
-                let target = targets[next(targets.count)]
-                return DailyChallenge(kind: kind, target: target, reward: target)
-            case .earnCoins:
-                let targets = [20, 40, 60]
-                let target = targets[next(targets.count)]
-                return DailyChallenge(kind: kind, target: target, reward: target * 2)
-            case .useFlutter:
-                let targets = [10, 20, 30]
-                let target = targets[next(targets.count)]
-                return DailyChallenge(kind: kind, target: target, reward: 50)
-            case .passGates:
-                let targets = [40, 80, 120]
-                let target = targets[next(targets.count)]
-                return DailyChallenge(kind: kind, target: target, reward: target / 2 + 25)
+            case .fallDistance:
+                return DailyChallenge(kind: kind, target: 500, reward: 30)
+            case .feathersInOneRun:
+                return DailyChallenge(kind: kind, target: 10, reward: 25)
+            case .ghostUses:
+                return DailyChallenge(kind: kind, target: 3, reward: 20)
+            case .reachZone:
+                return DailyChallenge(kind: kind, target: 2, reward: 35)
+            case .nearMisses:
+                return DailyChallenge(kind: kind, target: 5, reward: 15)
+            case .playRuns:
+                return DailyChallenge(kind: kind, target: 5, reward: 20)
             }
         }
     }
@@ -210,6 +235,14 @@ struct DailyView: View {
                 ForEach(store.challenges) { challenge in
                     challengeRow(challenge)
                 }
+
+                Text("ACHIEVEMENTS")
+                    .font(.system(size: 13, weight: .heavy, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .kerning(2)
+                    .padding(.top, 8)
+
+                AchievementsSection()
             }
             .padding(22)
         }

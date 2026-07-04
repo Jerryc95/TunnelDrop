@@ -50,10 +50,12 @@ extension GameScene {
         }
     }
 
+    // Zones climb without bound; the world visuals cycle through the list.
     func advanceWorldIfNeeded() {
-        let target = min(startWorldIndex + score / scorePerWorld, World.all.count - 1)
-        guard target != worldIndex else { return }
-        worldIndex = target
+        let target = score / scorePerWorld
+        guard target != zonesClearedThisRun else { return }
+        zonesClearedThisRun = target
+        worldIndex = (startWorldIndex + target) % World.all.count
         applyWorld(worldIndex, animated: true)
     }
 }

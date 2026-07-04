@@ -53,6 +53,7 @@ extension GameScene {
 
     func collectFeather(_ feather: SKNode) {
         feather.removeFromParent()
+        feathersThisRun += 1
         refillFlutter(featherRefillAmount)
         run(SKAction.playSoundFileNamed("pickUp.mp3", waitForCompletion: false))
     }

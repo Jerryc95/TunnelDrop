@@ -69,9 +69,16 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
     var coinLabel: SKLabelNode!
     var coinsThisRun = 0
-    var scorePerCoin = 5
     var flutterUsesThisRun = 0
     var gatesThisRun = 0
+    var distanceThisRun = 0.0
+    var metersPerSecond = 10.0
+    var feathersThisRun = 0
+    var ghostUsesThisRun = 0
+    var powerUpsCollectedThisRun = 0
+    var zonesClearedThisRun = 0
+    var nearMissesThisRun = 0
+    var lastCoinDisplay = -1
     var coinBalance = UserDefaults.standard.integer(forKey: "coinBalance") {
         didSet {
             UserDefaults.standard.set(coinBalance, forKey: "coinBalance")
@@ -124,7 +131,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     var score = 0 {
         didSet {
             scoreLabel.text = "\(score)"
-            coinLabel?.text = "🪙 \(score / scorePerCoin)"
         }
     }
     
@@ -403,7 +409,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
         // Rewards are NOT banked here — a revive would double-count them.
         // finalizeRun() commits when the player leaves the game-over card.
-        coinsThisRun = score / scorePerCoin
+        coinsThisRun = coinsEarned(newBest: score > highScore)
         let result = GameResult(score: score, coinsEarned: coinsThisRun, previousBest: highScore, isNewBest: score > highScore)
         // Scene speed is 0, so SKAction-based delays never fire; use GCD.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { [weak self] in
@@ -411,16 +417,61 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         }
     }
 
+    // Coin payout: 5 base, +2 per 10m fallen, +15 per zone cleared,
+    // +1 per near miss, +25 for a personal best.
+    func coinsEarned(newBest: Bool) -> Int {
+        5 + Int(distanceThisRun / 10) * 2 + zonesClearedThisRun * 15 + nearMissesThisRun + (newBest ? 25 : 0)
+    }
+
+    // Counts squeaking past a spike with almost no clearance.
+    func checkNearMiss() {
+        let playerHalfWidth = player.frame.width / 2
+        let playerX = player.position.x
+        let playerY = player.position.y
+        var margin = CGFloat.greatestFiniteMagnitude
+
+        enumerateChildNodes(withName: "leftRock") { node, _ in
+            if abs(node.position.y - playerY) < 150 {
+                let edge = node.position.x + node.frame.width / 2
+                margin = min(margin, playerX - playerHalfWidth - edge)
+            }
+        }
+        enumerateChildNodes(withName: "rightRock") { node, _ in
+            if abs(node.position.y - playerY) < 150 {
+                let edge = node.position.x - node.frame.width / 2
+                margin = min(margin, edge - (playerX + playerHalfWidth))
+            }
+        }
+
+        if margin < 12 {
+            nearMissesThisRun += 1
+        }
+    }
+
     func finalizeRun() {
         guard gameState == .dead, !runCommitted else { return }
         runCommitted = true
-        if score > highScore {
+        let isNewBest = score > highScore
+        if isNewBest {
             highScore = score
             UserDefaults.standard.set(highScore, forKey: "highScore")
         }
-        coinsThisRun = score / scorePerCoin
+        coinsThisRun = coinsEarned(newBest: isNewBest)
         coinBalance += coinsThisRun
-        DailyChallengeStore.shared.recordRun(score: score, coins: coinsThisRun, flutterUses: flutterUsesThisRun, gates: gatesThisRun)
+
+        let stats = RunStats(
+            score: score,
+            coins: coinsThisRun,
+            meters: distanceThisRun,
+            feathers: feathersThisRun,
+            ghostUses: ghostUsesThisRun,
+            powerUps: powerUpsCollectedThisRun,
+            zoneReached: zonesClearedThisRun + 1,
+            nearMisses: nearMissesThisRun,
+            flutterUses: flutterUsesThisRun
+        )
+        DailyChallengeStore.shared.recordRun(stats)
+        LifetimeStats.record(stats)
     }
 
     // Paid/ad revive from the game-over card: resumes the same run.
@@ -523,6 +574,13 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 
         updatePowerUps(deltaTime: deltaTime)
 
+        distanceThisRun += deltaTime * metersPerSecond
+        let liveCoins = coinsEarned(newBest: false)
+        if liveCoins != lastCoinDisplay {
+            lastCoinDisplay = liveCoins
+            coinLabel.text = "🪙 \(liveCoins)"
+        }
+
         let flutterActive = isFluttering && flutterMeter > 0
         if flutterActive {
             flutterMeter = max(flutterMeter - flutterDrainPerSecond * deltaTime, 0)
@@ -570,6 +628,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             let successSound = SKAction.playSoundFileNamed("success.mp3", waitForCompletion: false)
             run(successSound)
             gatesThisRun += 1
+            checkNearMiss()
             score += powerUps.multiplierTime > 0 ? 3 : 1
 
             tiltSensitivity = min(tiltSensitivity + 1.75, maxTiltSensitivity)

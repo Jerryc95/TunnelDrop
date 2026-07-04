@@ -89,6 +89,7 @@ extension GameScene {
     }
 
     func collectPowerUp(_ powerUp: PowerUpNode) {
+        powerUpsCollectedThisRun += 1
         switch powerUp.type {
         case .magnet:
             powerUps.magnetTime = powerUp.type.duration
@@ -96,6 +97,7 @@ extension GameScene {
             powerUps.multiplierTime = powerUp.type.duration
         case .ghost:
             powerUps.ghostTime = powerUp.type.duration
+            ghostUsesThisRun += 1
         case .extraLife:
             powerUps.lives = min(powerUps.lives + 1, 3)
         }
