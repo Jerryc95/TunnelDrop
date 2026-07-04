@@ -196,7 +196,6 @@ struct ShopView: View {
             }
             .buttonStyle(ChunkyButtonStyle(color: Theme.green, edge: Theme.greenEdge, cornerRadius: 12, verticalPadding: 10))
             .disabled(product == nil)
-            .opacity(product == nil ? 0.5 : 1)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 16)
@@ -262,7 +261,6 @@ struct ShopView: View {
                 }
                 .buttonStyle(ChunkyButtonStyle(color: Theme.orange, edge: Theme.orangeEdge, cornerRadius: 12, verticalPadding: 9))
                 .disabled(!owned && !canAfford)
-                .opacity(!owned && !canAfford ? 0.45 : 1)
             }
         }
         .frame(maxWidth: .infinity)
@@ -302,7 +300,6 @@ struct ShopView: View {
                 }
                 .buttonStyle(ChunkyButtonStyle(color: Theme.green, edge: Theme.greenEdge, cornerRadius: 12, verticalPadding: 10, fullWidth: false))
                 .disabled(store.products[ShopStore.removeAdsID] == nil)
-                .opacity(store.products[ShopStore.removeAdsID] == nil ? 0.5 : 1)
             }
         }
         .padding(16)

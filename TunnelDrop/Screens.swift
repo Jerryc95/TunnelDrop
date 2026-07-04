@@ -23,6 +23,8 @@ enum Theme {
 // Chunky "game button": raised face over a darker bottom edge; the face
 // drops onto the edge while pressed.
 struct ChunkyButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
     var color: Color
     var edge: Color
     var cornerRadius: CGFloat = 14
@@ -42,6 +44,10 @@ struct ChunkyButtonStyle: ButtonStyle {
                     .fill(edge)
                     .offset(y: 4)
             )
+            // Flatten before dimming so the edge layer can't show through
+            // a translucent face when disabled.
+            .compositingGroup()
+            .opacity(isEnabled ? 1 : 0.5)
     }
 }
 
