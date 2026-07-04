@@ -362,15 +362,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         caption.position = CGPoint(x: 0, y: -barSize.height / 2 - 36)
         flutterBarBackground.addChild(caption)
 
-        // With overfill, the bar spans capacity + 100%; a tick marks where
-        // the normal cap sits.
-        if overfillOwned {
-            let marker = SKSpriteNode(color: UIColor(white: 1, alpha: 0.8), size: CGSize(width: barSize.width + 10, height: 2))
-            let capFraction = flutterCapacity / (flutterCapacity + 1.0)
-            marker.position = CGPoint(x: 0, y: -barSize.height / 2 + barSize.height * CGFloat(capFraction))
-            marker.zPosition = 2
-            flutterBarBackground.addChild(marker)
-        }
     }
 
     func refillFlutter(_ amount: Double) {
@@ -614,12 +605,13 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         }
         // The sensation of falling is the world scrolling — flutter slows it.
         speed = flutterActive ? flutterWorldSpeed : 1.0
-        player.speed = flutterActive ? 2.0 : 1.0
+        // Scene speed scales child action speed too; divide it back out so the
+        // flap animation genuinely doubles while fluttering.
+        player.speed = flutterActive ? 2.0 / flutterWorldSpeed : 1.0
 
-        let displayCap = overfillOwned ? flutterCapacity + 1.0 : flutterCapacity
-        flutterBarFill.yScale = CGFloat(min(flutterMeter / displayCap, 1))
+        flutterBarFill.yScale = CGFloat(min(flutterMeter / flutterCapacity, 1))
         if flutterMeter > flutterCapacity {
-            flutterBarFill.color = UIColor.systemYellow
+            flutterBarFill.color = UIColor.systemGreen
         } else {
             flutterBarFill.color = flutterMeter / flutterCapacity > 0.25 ? UIColor.cyan : UIColor.red
         }
